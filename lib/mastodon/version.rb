@@ -13,11 +13,7 @@ module Mastodon
     end
 
     def patch
-<<<<<<< HEAD
       1
-=======
-      5
->>>>>>> Bump version to 3.1.5
     end
 
     def flags
