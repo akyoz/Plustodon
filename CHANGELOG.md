@@ -3,6 +3,7 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+<<<<<<< HEAD
 ## [3.2.1] - 2020-10-19
 ### Added
 
@@ -185,6 +186,8 @@ All notable changes to this project will be documented in this file.
   - Only then proceed to start removing their data (slow)
   - Clear out media attachments in a separate worker (slow)
 
+=======
+>>>>>>> Bump version to 3.1.5
 ## [v3.1.5] - 2020-07-07
 ### Security
 

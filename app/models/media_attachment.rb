@@ -59,7 +59,7 @@ class MediaAttachment < ApplicationRecord
 
   IMAGE_STYLES = {
     original: {
-      pixels: 1_638_400, # 1280x1280px
+      pixels: 14_745_600, # 3840x3840px
       file_geometry_parser: FastGeometryParser,
     }.freeze,
 
@@ -150,10 +150,10 @@ class MediaAttachment < ApplicationRecord
     all: '-quality 90 -strip +set modify-date +set create-date',
   }.freeze
 
-  IMAGE_LIMIT = 10.megabytes
-  VIDEO_LIMIT = 40.megabytes
+  IMAGE_LIMIT = 100.megabytes
+  VIDEO_LIMIT = 100.megabytes
 
-  MAX_VIDEO_MATRIX_LIMIT = 2_304_000 # 1920x1200px
+  MAX_VIDEO_MATRIX_LIMIT = 14_745_600 # 3840x3840px
   MAX_VIDEO_FRAME_RATE   = 60
 
   belongs_to :account,          inverse_of: :media_attachments, optional: true

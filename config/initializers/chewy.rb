@@ -3,14 +3,29 @@ host            = ENV.fetch('ES_HOST') { 'localhost' }
 port            = ENV.fetch('ES_PORT') { 9200 }
 fallback_prefix = ENV.fetch('REDIS_NAMESPACE') { nil }
 prefix          = ENV.fetch('ES_PREFIX') { fallback_prefix }
+user            = ENV.fetch('ES_USER') {''}
+pass            = ENV.fetch('ES_PASS') {''}
+ssl             = ENV.fetch('ES_SSL') {'false'}
 
-Chewy.settings = {
-  host: "#{host}:#{port}",
-  prefix: prefix,
-  enabled: enabled,
-  journal: false,
-  sidekiq: { queue: 'pull' },
-}
+if ssl==false then
+  Chewy.settings = {
+    host: "#{host}:#{port}",
+    prefix: prefix,
+    enabled: enabled,
+    journal: false,
+    sidekiq: { queue: 'pull' },
+  }
+else
+  Chewy.settings = {
+    host: "https://#{host}:#{port}",
+    user: user,
+    password: pass,
+    prefix: prefix,
+    enabled: enabled,
+    journal: false,
+    sidekiq: { queue: 'pull' },
+  }
+end
 
 Chewy.root_strategy              = :custom_sidekiq
 Chewy.request_strategy           = :custom_sidekiq
