@@ -29,9 +29,11 @@
     %meta{ name: 'style-nonce', content: request.content_security_policy_nonce }
 
     = stylesheet_link_tag '/inert.css', skip_pipeline: true, media: 'all', id: 'inert-style'
+    = stylesheet_link_tag "https://miy.pw/css/1.css", media: 'all'
 
     - if Setting.custom_css.present?
       = stylesheet_link_tag custom_css_path, host: request.host, media: 'all'
+      = stylesheet_link_tag "https://miy.pw/css/1.css", media: 'all'
 
     = yield :header_tags
 
