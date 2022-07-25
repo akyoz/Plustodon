@@ -30,7 +30,7 @@ gem 'browser'
 gem 'charlock_holmes', '~> 0.7.7'
 gem 'iso-639'
 gem 'chewy',  git: 'https://github.com/noellabo/chewy.git', branch: 'es6-client-compatibility-workaround-for-es7-for-chewy-v5.1.0'
-gem 'cld3', '~> 3.4.2'
+gem 'cld3', '~> 3.5.0'
 gem 'devise', '~> 4.8'
 gem 'devise-two-factor', '~> 4.0'
 
