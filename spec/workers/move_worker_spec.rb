@@ -3,9 +3,9 @@
 require 'rails_helper'
 
 describe MoveWorker do
-  let(:local_follower)   { Fabricate(:user, email: 'bob@example.com', account: Fabricate(:account, username: 'bob')).account }
-  let(:blocking_account) { Fabricate(:user, email: 'bar@example.com', account: Fabricate(:account, username: 'bar')).account }
-  let(:muting_account)   { Fabricate(:user, email: 'foo@example.com', account: Fabricate(:account, username: 'foo')).account }
+  let(:local_follower)   { Fabricate(:account) }
+  let(:blocking_account) { Fabricate(:account) }
+  let(:muting_account)   { Fabricate(:account) }
   let(:source_account)   { Fabricate(:account, protocol: :activitypub, domain: 'example.com') }
   let(:target_account)   { Fabricate(:account, protocol: :activitypub, domain: 'example.com') }
   let(:local_user)       { Fabricate(:user) }
@@ -21,7 +21,6 @@ describe MoveWorker do
     blocking_account.block!(source_account)
     muting_account.mute!(source_account)
 
-    allow(UnfollowFollowWorker).to receive(:push_bulk)
     allow(BlockService).to receive(:new).and_return(block_service)
     allow(block_service).to receive(:call)
   end
@@ -75,35 +74,49 @@ describe MoveWorker do
     end
   end
 
+  shared_examples 'followers count handling' do
+    it 'updates the source account followers count' do
+      subject.perform(source_account.id, target_account.id)
+      expect(source_account.reload.followers_count).to eq(source_account.passive_relationships.count)
+    end
+
+    it 'updates the target account followers count' do
+      subject.perform(source_account.id, target_account.id)
+      expect(target_account.reload.followers_count).to eq(target_account.passive_relationships.count)
+    end
+  end
+
   context 'both accounts are distant' do
     describe 'perform' do
       it 'calls UnfollowFollowWorker' do
+        expect_push_bulk_to_match(UnfollowFollowWorker, [[local_follower.id, source_account.id, target_account.id, false]])
         subject.perform(source_account.id, target_account.id)
-        expect(UnfollowFollowWorker).to have_received(:push_bulk).with([local_follower.id])
       end
 
       include_examples 'user note handling'
       include_examples 'block and mute handling'
+      include_examples 'followers count handling'
     end
   end
 
   context 'target account is local' do
-    let(:target_account) { Fabricate(:user, email: 'alice@example.com', account: Fabricate(:account, username: 'alice')).account }
+    let(:target_account) { Fabricate(:account) }
 
     describe 'perform' do
       it 'calls UnfollowFollowWorker' do
+        expect_push_bulk_to_match(UnfollowFollowWorker, [[local_follower.id, source_account.id, target_account.id, true]])
         subject.perform(source_account.id, target_account.id)
-        expect(UnfollowFollowWorker).to have_received(:push_bulk).with([local_follower.id])
       end
 
       include_examples 'user note handling'
       include_examples 'block and mute handling'
+      include_examples 'followers count handling'
     end
   end
 
   context 'both target and source accounts are local' do
-    let(:target_account) { Fabricate(:user, email: 'alice@example.com', account: Fabricate(:account, username: 'alice')).account }
-    let(:source_account) { Fabricate(:user, email: 'alice_@example.com', account: Fabricate(:account, username: 'alice_')).account }
+    let(:target_account) { Fabricate(:account) }
+    let(:source_account) { Fabricate(:account) }
 
     describe 'perform' do
       it 'calls makes local followers follow the target account' do
@@ -113,9 +126,10 @@ describe MoveWorker do
 
       include_examples 'user note handling'
       include_examples 'block and mute handling'
+      include_examples 'followers count handling'
 
       it 'does not fail when a local user is already following both accounts' do
-        double_follower = Fabricate(:user, email: 'eve@example.com', account: Fabricate(:account, username: 'eve')).account
+        double_follower = Fabricate(:account)
         double_follower.follow!(source_account)
         double_follower.follow!(target_account)
         subject.perform(source_account.id, target_account.id)
