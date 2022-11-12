@@ -57,10 +57,3 @@ end
 def json_str_to_hash(str)
   JSON.parse(str, symbolize_names: true)
 end
-
-def expect_push_bulk_to_match(klass, matcher)
-  expect(Sidekiq::Client).to receive(:push_bulk).with(hash_including({
-    "class" => klass,
-    "args" => matcher
-  }))
-end

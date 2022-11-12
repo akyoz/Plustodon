@@ -4,7 +4,6 @@ class DeleteAccountService < BaseService
   include Payloadable
 
   ASSOCIATIONS_ON_SUSPEND = %w(
-    account_notes
     account_pins
     active_relationships
     aliases
@@ -17,6 +16,7 @@ class DeleteAccountService < BaseService
     domain_blocks
     featured_tags
     follow_requests
+    identity_proofs
     list_accounts
     migrations
     mute_relationships
@@ -34,7 +34,6 @@ class DeleteAccountService < BaseService
   # by foreign keys, making them safe to delete without loading
   # into memory
   ASSOCIATIONS_WITHOUT_SIDE_EFFECTS = %w(
-    account_notes
     account_pins
     aliases
     conversation_mutes
@@ -44,6 +43,7 @@ class DeleteAccountService < BaseService
     domain_blocks
     featured_tags
     follow_requests
+    identity_proofs
     list_accounts
     migrations
     mute_relationships
@@ -187,7 +187,7 @@ class DeleteAccountService < BaseService
     @account.favourites.in_batches do |favourites|
       ids = favourites.pluck(:status_id)
       StatusStat.where(status_id: ids).update_all('favourites_count = GREATEST(0, favourites_count - 1)')
-      Chewy.strategy.current.update(StatusesIndex, ids) if Chewy.enabled?
+      Chewy.strategy.current.update(StatusesIndex::Status, ids) if Chewy.enabled?
       Rails.cache.delete_multi(ids.map { |id| "statuses/#{id}" })
       favourites.delete_all
     end
@@ -195,7 +195,7 @@ class DeleteAccountService < BaseService
 
   def purge_bookmarks!
     @account.bookmarks.in_batches do |bookmarks|
-      Chewy.strategy.current.update(StatusesIndex, bookmarks.pluck(:status_id)) if Chewy.enabled?
+      Chewy.strategy.current.update(StatusesIndex::Status, bookmarks.pluck(:status_id)) if Chewy.enabled?
       bookmarks.delete_all
     end
   end
@@ -220,23 +220,21 @@ class DeleteAccountService < BaseService
 
     return unless keep_account_record?
 
-    @account.silenced_at         = nil
-    @account.suspended_at        = @options[:suspended_at] || Time.now.utc
-    @account.suspension_origin   = :local
-    @account.locked              = false
-    @account.memorial            = false
-    @account.discoverable        = false
-    @account.trendable           = false
-    @account.display_name        = ''
-    @account.note                = ''
-    @account.fields              = []
-    @account.statuses_count      = 0
-    @account.followers_count     = 0
-    @account.following_count     = 0
-    @account.moved_to_account    = nil
-    @account.reviewed_at         = nil
-    @account.requested_review_at = nil
-    @account.also_known_as       = []
+    @account.silenced_at       = nil
+    @account.suspended_at      = @options[:suspended_at] || Time.now.utc
+    @account.suspension_origin = :local
+    @account.locked            = false
+    @account.memorial          = false
+    @account.discoverable      = false
+    @account.display_name      = ''
+    @account.note              = ''
+    @account.fields            = []
+    @account.statuses_count    = 0
+    @account.followers_count   = 0
+    @account.following_count   = 0
+    @account.moved_to_account  = nil
+    @account.also_known_as     = []
+    @account.trust_level       = :untrusted
     @account.avatar.destroy
     @account.header.destroy
     @account.save!
@@ -267,7 +265,7 @@ class DeleteAccountService < BaseService
   end
 
   def delete_actor_json
-    @delete_actor_json ||= Oj.dump(serialize_payload(@account, ActivityPub::DeleteActorSerializer, signer: @account, always_sign: true))
+    @delete_actor_json ||= Oj.dump(serialize_payload(@account, ActivityPub::DeleteActorSerializer, signer: @account))
   end
 
   def delivery_inboxes

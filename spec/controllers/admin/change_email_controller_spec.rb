@@ -3,7 +3,7 @@ require 'rails_helper'
 RSpec.describe Admin::ChangeEmailsController, type: :controller do
   render_views
 
-  let(:admin) { Fabricate(:user, role: UserRole.find_by(name: 'Admin')) }
+  let(:admin) { Fabricate(:user, admin: true) }
 
   before do
     sign_in admin
@@ -11,9 +11,10 @@ RSpec.describe Admin::ChangeEmailsController, type: :controller do
 
   describe "GET #show" do
     it "returns http success" do
-      user = Fabricate(:user)
+      account = Fabricate(:account)
+      user = Fabricate(:user, account: account)
 
-      get :show, params: { account_id: user.account.id }
+      get :show, params: { account_id: account.id }
 
       expect(response).to have_http_status(200)
     end
@@ -25,11 +26,12 @@ RSpec.describe Admin::ChangeEmailsController, type: :controller do
     end
 
     it "returns http success" do
-      user = Fabricate(:user)
+      account = Fabricate(:account)
+      user = Fabricate(:user, account: account)
 
       previous_email = user.email
 
-      post :update, params: { account_id: user.account.id, user: { unconfirmed_email: 'test@example.com' } }
+      post :update, params: { account_id: account.id, user: { unconfirmed_email: 'test@example.com' } }
 
       user.reload
 
@@ -39,7 +41,7 @@ RSpec.describe Admin::ChangeEmailsController, type: :controller do
 
       expect(UserMailer).to have_received(:confirmation_instructions).with(user, user.confirmation_token, { to: 'test@example.com' })
 
-      expect(response).to redirect_to(admin_account_path(user.account.id))
+      expect(response).to redirect_to(admin_account_path(account.id))
     end
   end
 end

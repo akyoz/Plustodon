@@ -84,9 +84,9 @@ RSpec.describe ActivityPub::Activity::Move do
 
     context 'when a Move has been recently processed' do
       around do |example|
-        redis.set("move_in_progress:#{old_account.id}", true, nx: true, ex: 7.days.seconds)
+        Redis.current.set("move_in_progress:#{old_account.id}", true, nx: true, ex: 7.days.seconds)
         example.run
-        redis.del("move_in_progress:#{old_account.id}")
+        Redis.current.del("move_in_progress:#{old_account.id}")
       end
 
       it 'does not set moved account on old account' do

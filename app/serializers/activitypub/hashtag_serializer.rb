@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 class ActivityPub::HashtagSerializer < ActivityPub::Serializer
-  context_extensions :hashtag
-
   include RoutingHelper
 
   attributes :type, :href, :name
@@ -12,11 +10,11 @@ class ActivityPub::HashtagSerializer < ActivityPub::Serializer
   end
 
   def name
-    "##{object.display_name}"
+    "##{object.name}"
   end
 
   def href
-    if object.instance_of?(FeaturedTag)
+    if object.class.name == 'FeaturedTag'
       short_account_tag_url(object.account, object.tag)
     else
       tag_url(object)

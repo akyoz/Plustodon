@@ -3,8 +3,6 @@
 class ActivityPub::ProcessAccountService < BaseService
   include JsonLdHelper
   include DomainControlHelper
-  include Redisable
-  include Lockable
 
   # Should be called with confirmed valid JSON
   # and WebFinger-resolved username and domain
@@ -18,19 +16,26 @@ class ActivityPub::ProcessAccountService < BaseService
     @domain      = domain
     @collections = {}
 
-    with_lock("process_account:#{@uri}") do
-      @account            = Account.remote.find_by(uri: @uri) if @options[:only_key]
-      @account          ||= Account.find_remote(@username, @domain)
-      @old_public_key     = @account&.public_key
-      @old_protocol       = @account&.protocol
-      @suspension_changed = false
+    RedisLock.acquire(lock_options) do |lock|
+      if lock.acquired?
+        @account            = Account.remote.find_by(uri: @uri) if @options[:only_key]
+        @account          ||= Account.find_remote(@username, @domain)
+        @old_public_key     = @account&.public_key
+        @old_protocol       = @account&.protocol
+        @suspension_changed = false
 
-      create_account if @account.nil?
-      update_account
-      process_tags
+        create_account if @account.nil?
+        update_account
+        process_tags
+        process_attachments
 
-      process_duplicate_accounts! if @options[:verified_webfinger]
+        process_duplicate_accounts! if @options[:verified_webfinger]
+      else
+        raise Mastodon::RaceConditionError
+      end
     end
+
+    return if @account.nil?
 
     after_protocol_change! if protocol_changed?
     after_key_change! if key_changed? && !@options[:signed_with_known_key]
@@ -39,8 +44,7 @@ class ActivityPub::ProcessAccountService < BaseService
 
     unless @options[:only_key] || @account.suspended?
       check_featured_collection! if @account.featured_collection_url.present?
-      check_featured_tags_collection! if @json['featuredTags'].present?
-      check_links! if @account.fields.any?(&:requires_verification?)
+      check_links! unless @account.fields.empty?
     end
 
     @account
@@ -104,13 +108,11 @@ class ActivityPub::ProcessAccountService < BaseService
   def set_fetchable_attributes!
     begin
       @account.avatar_remote_url = image_url('icon') || '' unless skip_download?
-      @account.avatar = nil if @account.avatar_remote_url.blank?
     rescue Mastodon::UnexpectedResponseError, HTTP::TimeoutError, HTTP::ConnectionError, OpenSSL::SSL::SSLError
       RedownloadAvatarWorker.perform_in(rand(30..600).seconds, @account.id)
     end
     begin
       @account.header_remote_url = image_url('image') || '' unless skip_download?
-      @account.header = nil if @account.header_remote_url.blank?
     rescue Mastodon::UnexpectedResponseError, HTTP::TimeoutError, HTTP::ConnectionError, OpenSSL::SSL::SSLError
       RedownloadHeaderWorker.perform_in(rand(30..600).seconds, @account.id)
     end
@@ -150,11 +152,7 @@ class ActivityPub::ProcessAccountService < BaseService
   end
 
   def check_featured_collection!
-    ActivityPub::SynchronizeFeaturedCollectionWorker.perform_async(@account.id, { 'hashtag' => @json['featuredTags'].blank? })
-  end
-
-  def check_featured_tags_collection!
-    ActivityPub::SynchronizeFeaturedTagsCollectionWorker.perform_async(@account.id, @json['featuredTags'])
+    ActivityPub::SynchronizeFeaturedCollectionWorker.perform_async(@account.id)
   end
 
   def check_links!
@@ -291,11 +289,32 @@ class ActivityPub::ProcessAccountService < BaseService
     !@old_protocol.nil? && @old_protocol != @account.protocol
   end
 
+  def lock_options
+    { redis: Redis.current, key: "process_account:#{@uri}", autorelease: 15.minutes.seconds }
+  end
+
   def process_tags
     return if @json['tag'].blank?
 
     as_array(@json['tag']).each do |tag|
       process_emoji tag if equals_or_includes?(tag['type'], 'Emoji')
+    end
+  end
+
+  def process_attachments
+    return if @json['attachment'].blank?
+
+    previous_proofs = @account.identity_proofs.to_a
+    current_proofs  = []
+
+    as_array(@json['attachment']).each do |attachment|
+      next unless equals_or_includes?(attachment['type'], 'IdentityProof')
+      current_proofs << process_identity_proof(attachment)
+    end
+
+    previous_proofs.each do |previous_proof|
+      next if current_proofs.any? { |current_proof| current_proof.id == previous_proof.id }
+      previous_proof.delete
     end
   end
 
@@ -314,5 +333,13 @@ class ActivityPub::ProcessAccountService < BaseService
     emoji ||= CustomEmoji.new(domain: @account.domain, shortcode: shortcode, uri: uri)
     emoji.image_remote_url = image_url
     emoji.save
+  end
+
+  def process_identity_proof(attachment)
+    provider          = attachment['signatureAlgorithm']
+    provider_username = attachment['name']
+    token             = attachment['signatureValue']
+
+    @account.identity_proofs.where(provider: provider, provider_username: provider_username).find_or_create_by(provider: provider, provider_username: provider_username, token: token)
   end
 end

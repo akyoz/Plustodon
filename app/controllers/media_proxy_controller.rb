@@ -3,8 +3,6 @@
 class MediaProxyController < ApplicationController
   include RoutingHelper
   include Authorization
-  include Redisable
-  include Lockable
 
   skip_before_action :store_current_location
   skip_before_action :require_functional!
@@ -17,10 +15,14 @@ class MediaProxyController < ApplicationController
   rescue_from HTTP::TimeoutError, HTTP::ConnectionError, OpenSSL::SSL::SSLError, with: :internal_server_error
 
   def show
-    with_lock("media_download:#{params[:id]}") do
-      @media_attachment = MediaAttachment.remote.attached.find(params[:id])
-      authorize @media_attachment.status, :show?
-      redownload! if @media_attachment.needs_redownload? && !reject_media?
+    RedisLock.acquire(lock_options) do |lock|
+      if lock.acquired?
+        @media_attachment = MediaAttachment.remote.attached.find(params[:id])
+        authorize @media_attachment.status, :show?
+        redownload! if @media_attachment.needs_redownload? && !reject_media?
+      else
+        raise Mastodon::RaceConditionError
+      end
     end
 
     redirect_to full_asset_url(@media_attachment.file.url(version))
@@ -40,6 +42,10 @@ class MediaProxyController < ApplicationController
     else
       :original
     end
+  end
+
+  def lock_options
+    { redis: Redis.current, key: "media_download:#{params[:id]}", autorelease: 15.minutes.seconds }
   end
 
   def reject_media?

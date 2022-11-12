@@ -63,7 +63,7 @@ describe Request do
         expect(a_request(:get, 'http://example.com').with(headers: subject.headers)).to have_been_made
       end
 
-      it 'closes underlying connection' do
+      it 'closes underlaying connection' do
         expect_any_instance_of(HTTP::Client).to receive(:close)
         expect { |block| subject.perform &block }.to yield_control
       end

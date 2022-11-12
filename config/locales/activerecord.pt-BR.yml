@@ -3,53 +3,30 @@ pt-BR:
   activerecord:
     attributes:
       poll:
-        expires_at: Prazo
-        options: Opções
+        expires_at: Vencimento
+        options: Escolhas
       user:
-        agreement: Termos de serviço
-        email: E-mail
-        locale: Idioma
+        agreement: Termos do Serviço
+        email: Endereço de e-mail
+        locale: Local
         password: Senha
       user/account:
-        username: Usuário
+        username: Nome de usuário
       user/invite_request:
-        text: Razão
+        text: Motivos
     errors:
       models:
         account:
           attributes:
             username:
               invalid: apenas letras, números e underlines ( "_" )
-              reserved: já existe
-        admin/webhook:
-          attributes:
-            url:
-              invalid: não é uma URL válida
-        doorkeeper/application:
-          attributes:
-            website:
-              invalid: não é uma URL válida
-        import:
-          attributes:
-            data:
-              malformed: está incorreto
+              reserved: está reservado
         status:
           attributes:
             reblog:
-              taken: do toot já existe
+              taken: do status já existe
         user:
           attributes:
             email:
-              blocked: usa provedor de e-mail não permitido
+              blocked: utiliza um provedor de e-mail não permitido
               unreachable: parece não existir
-            role_id:
-              elevated: não pode ser maior do que sua função atual
-        user_role:
-          attributes:
-            permissions_as_keys:
-              dangerous: inlcuir permissões que não são seguras para a função base
-              elevated: não pode incluir permissões que a sua função atual não possui
-              own_role: não pode ser alterado com sua função atual
-            position:
-              elevated: não pode ser maior do que sua função atual
-              own_role: não pode ser alterado com sua função atual

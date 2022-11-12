@@ -2,5 +2,5 @@
 
 Rails.application.config.session_store :cookie_store,
   key: '_mastodon_session',
-  secure: false, # All cookies have their secure flag set by the force_ssl option in production
+  secure: (Rails.env.production? || ENV['LOCAL_HTTPS'] == 'true'),
   same_site: :lax

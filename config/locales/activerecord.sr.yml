@@ -5,28 +5,13 @@ sr:
       poll:
         expires_at: Крајњи рок
         options: Избори
-      user:
-        agreement: Уговор о услузи
-        email: Имејл адреса
-        locale: Регионална подешавања
-        password: Лозинка
-      user/account:
-        username: Корисничко име
-      user/invite_request:
-        text: Разлог
     errors:
       models:
         account:
           attributes:
             username:
-              invalid: мора да садржи само слова, бројеве и доње црте
-              reserved: је резервисано
+              invalid: само слова, бројеви и доње црте
         status:
           attributes:
             reblog:
-              taken: објава већ постоји
-        user:
-          attributes:
-            email:
-              blocked: користи недозвољени имејл сервис
-              unreachable: изгледа да не постоји
+              taken: статуса већ постоји

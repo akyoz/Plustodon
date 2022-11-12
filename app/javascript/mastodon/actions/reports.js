@@ -1,38 +1,89 @@
 import api from '../api';
-import { openModal } from './modal';
+import { openModal, closeModal } from './modal';
+
+export const REPORT_INIT   = 'REPORT_INIT';
+export const REPORT_CANCEL = 'REPORT_CANCEL';
 
 export const REPORT_SUBMIT_REQUEST = 'REPORT_SUBMIT_REQUEST';
 export const REPORT_SUBMIT_SUCCESS = 'REPORT_SUBMIT_SUCCESS';
 export const REPORT_SUBMIT_FAIL    = 'REPORT_SUBMIT_FAIL';
 
-export const initReport = (account, status) => dispatch =>
-  dispatch(openModal('REPORT', {
-    accountId: account.get('id'),
-    statusId: status?.get('id'),
-  }));
+export const REPORT_STATUS_TOGGLE  = 'REPORT_STATUS_TOGGLE';
+export const REPORT_COMMENT_CHANGE = 'REPORT_COMMENT_CHANGE';
+export const REPORT_FORWARD_CHANGE = 'REPORT_FORWARD_CHANGE';
 
-export const submitReport = (params, onSuccess, onFail) => (dispatch, getState) => {
-  dispatch(submitReportRequest());
+export function initReport(account, status) {
+  return dispatch => {
+    dispatch({
+      type: REPORT_INIT,
+      account,
+      status,
+    });
 
-  api(getState).post('/api/v1/reports', params).then(response => {
-    dispatch(submitReportSuccess(response.data));
-    if (onSuccess) onSuccess();
-  }).catch(error => {
-    dispatch(submitReportFail(error));
-    if (onFail) onFail();
-  });
+    dispatch(openModal('REPORT'));
+  };
 };
 
-export const submitReportRequest = () => ({
-  type: REPORT_SUBMIT_REQUEST,
-});
+export function cancelReport() {
+  return {
+    type: REPORT_CANCEL,
+  };
+};
 
-export const submitReportSuccess = report => ({
-  type: REPORT_SUBMIT_SUCCESS,
-  report,
-});
+export function toggleStatusReport(statusId, checked) {
+  return {
+    type: REPORT_STATUS_TOGGLE,
+    statusId,
+    checked,
+  };
+};
 
-export const submitReportFail = error => ({
-  type: REPORT_SUBMIT_FAIL,
-  error,
-});
+export function submitReport() {
+  return (dispatch, getState) => {
+    dispatch(submitReportRequest());
+
+    api(getState).post('/api/v1/reports', {
+      account_id: getState().getIn(['reports', 'new', 'account_id']),
+      status_ids: getState().getIn(['reports', 'new', 'status_ids']),
+      comment: getState().getIn(['reports', 'new', 'comment']),
+      forward: getState().getIn(['reports', 'new', 'forward']),
+    }).then(response => {
+      dispatch(closeModal());
+      dispatch(submitReportSuccess(response.data));
+    }).catch(error => dispatch(submitReportFail(error)));
+  };
+};
+
+export function submitReportRequest() {
+  return {
+    type: REPORT_SUBMIT_REQUEST,
+  };
+};
+
+export function submitReportSuccess(report) {
+  return {
+    type: REPORT_SUBMIT_SUCCESS,
+    report,
+  };
+};
+
+export function submitReportFail(error) {
+  return {
+    type: REPORT_SUBMIT_FAIL,
+    error,
+  };
+};
+
+export function changeReportComment(comment) {
+  return {
+    type: REPORT_COMMENT_CHANGE,
+    comment,
+  };
+};
+
+export function changeReportForward(forward) {
+  return {
+    type: REPORT_FORWARD_CHANGE,
+    forward,
+  };
+};

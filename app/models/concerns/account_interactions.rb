@@ -9,7 +9,6 @@ module AccountInteractions
         mapping[follow.target_account_id] = {
           reblogs: follow.show_reblogs?,
           notify: follow.notify?,
-          languages: follow.languages,
         }
       end
     end
@@ -39,7 +38,6 @@ module AccountInteractions
         mapping[follow_request.target_account_id] = {
           reblogs: follow_request.show_reblogs?,
           notify: follow_request.notify?,
-          languages: follow_request.languages,
         }
       end
     end
@@ -83,9 +81,6 @@ module AccountInteractions
     has_many :following, -> { order('follows.id desc') }, through: :active_relationships,  source: :target_account
     has_many :followers, -> { order('follows.id desc') }, through: :passive_relationships, source: :account
 
-    # Account notes
-    has_many :account_notes, dependent: :destroy
-
     # Block relationships
     has_many :block_relationships, class_name: 'Block', foreign_key: 'account_id', dependent: :destroy
     has_many :blocking, -> { order('blocks.id desc') }, through: :block_relationships, source: :target_account
@@ -102,13 +97,12 @@ module AccountInteractions
     has_many :announcement_mutes, dependent: :destroy
   end
 
-  def follow!(other_account, reblogs: nil, notify: nil, languages: nil, uri: nil, rate_limit: false, bypass_limit: false)
-    rel = active_relationships.create_with(show_reblogs: reblogs.nil? ? true : reblogs, notify: notify.nil? ? false : notify, languages: languages, uri: uri, rate_limit: rate_limit, bypass_follow_limit: bypass_limit)
+  def follow!(other_account, reblogs: nil, notify: nil, uri: nil, rate_limit: false, bypass_limit: false)
+    rel = active_relationships.create_with(show_reblogs: reblogs.nil? ? true : reblogs, notify: notify.nil? ? false : notify, uri: uri, rate_limit: rate_limit, bypass_follow_limit: bypass_limit)
                               .find_or_create_by!(target_account: other_account)
 
-    rel.show_reblogs = reblogs   unless reblogs.nil?
-    rel.notify       = notify    unless notify.nil?
-    rel.languages    = languages unless languages.nil?
+    rel.show_reblogs = reblogs unless reblogs.nil?
+    rel.notify       = notify  unless notify.nil?
 
     rel.save! if rel.changed?
 
@@ -117,13 +111,12 @@ module AccountInteractions
     rel
   end
 
-  def request_follow!(other_account, reblogs: nil, notify: nil, languages: nil, uri: nil, rate_limit: false, bypass_limit: false)
-    rel = follow_requests.create_with(show_reblogs: reblogs.nil? ? true : reblogs, notify: notify.nil? ? false : notify, uri: uri, languages: languages, rate_limit: rate_limit, bypass_follow_limit: bypass_limit)
+  def request_follow!(other_account, reblogs: nil, notify: nil, uri: nil, rate_limit: false, bypass_limit: false)
+    rel = follow_requests.create_with(show_reblogs: reblogs.nil? ? true : reblogs, notify: notify.nil? ? false : notify, uri: uri, rate_limit: rate_limit, bypass_follow_limit: bypass_limit)
                          .find_or_create_by!(target_account: other_account)
 
-    rel.show_reblogs = reblogs   unless reblogs.nil?
-    rel.notify       = notify    unless notify.nil?
-    rel.languages    = languages unless languages.nil?
+    rel.show_reblogs = reblogs unless reblogs.nil?
+    rel.notify       = notify  unless notify.nil?
 
     rel.save! if rel.changed?
 
@@ -199,10 +192,6 @@ module AccountInteractions
     !following_anyone?
   end
 
-  def followed_by?(other_account)
-    other_account.following?(self)
-  end
-
   def blocking?(other_account)
     block_relationships.where(target_account: other_account).exists?
   end
@@ -251,11 +240,6 @@ module AccountInteractions
     account_pins.where(target_account: account).exists?
   end
 
-  def status_matches_filters(status)
-    active_filters = CustomFilter.cached_filters_for(id)
-    CustomFilter.apply_cached_filters(active_filters, status)
-  end
-
   def followers_for_local_distribution
     followers.local
              .joins(:user)
@@ -292,7 +276,8 @@ module AccountInteractions
 
   private
 
-  def remove_potential_friendship(other_account)
+  def remove_potential_friendship(other_account, mutual = false)
     PotentialFriendshipTracker.remove(id, other_account.id)
+    PotentialFriendshipTracker.remove(other_account.id, id) if mutual
   end
 end

@@ -2,18 +2,18 @@
 
 class RulePolicy < ApplicationPolicy
   def index?
-    role.can?(:manage_rules)
+    staff?
   end
 
   def create?
-    role.can?(:manage_rules)
+    admin?
   end
 
   def update?
-    role.can?(:manage_rules)
+    admin?
   end
 
   def destroy?
-    role.can?(:manage_rules)
+    admin?
   end
 end

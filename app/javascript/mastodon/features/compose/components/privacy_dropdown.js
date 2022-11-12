@@ -11,12 +11,12 @@ import Icon from 'mastodon/components/icon';
 
 const messages = defineMessages({
   public_short: { id: 'privacy.public.short', defaultMessage: 'Public' },
-  public_long: { id: 'privacy.public.long', defaultMessage: 'Visible for all' },
+  public_long: { id: 'privacy.public.long', defaultMessage: 'Visible for all, shown in public timelines' },
   unlisted_short: { id: 'privacy.unlisted.short', defaultMessage: 'Unlisted' },
-  unlisted_long: { id: 'privacy.unlisted.long', defaultMessage: 'Visible for all, but opted-out of discovery features' },
-  private_short: { id: 'privacy.private.short', defaultMessage: 'Followers only' },
+  unlisted_long: { id: 'privacy.unlisted.long', defaultMessage: 'Visible for all, but not in public timelines' },
+  private_short: { id: 'privacy.private.short', defaultMessage: 'Followers-only' },
   private_long: { id: 'privacy.private.long', defaultMessage: 'Visible for followers only' },
-  direct_short: { id: 'privacy.direct.short', defaultMessage: 'Mentioned people only' },
+  direct_short: { id: 'privacy.direct.short', defaultMessage: 'Direct' },
   direct_long: { id: 'privacy.direct.long', defaultMessage: 'Visible for mentioned users only' },
   change_privacy: { id: 'privacy.change', defaultMessage: 'Adjust status privacy' },
 });
@@ -159,7 +159,6 @@ class PrivacyDropdown extends React.PureComponent {
     onChange: PropTypes.func.isRequired,
     noDirect: PropTypes.bool,
     container: PropTypes.func,
-    disabled: PropTypes.bool,
     intl: PropTypes.object.isRequired,
   };
 
@@ -242,13 +241,13 @@ class PrivacyDropdown extends React.PureComponent {
 
     if (!this.props.noDirect) {
       this.options.push(
-        { icon: 'at', value: 'direct', text: formatMessage(messages.direct_short), meta: formatMessage(messages.direct_long) },
+        { icon: 'envelope', value: 'direct', text: formatMessage(messages.direct_short), meta: formatMessage(messages.direct_long) },
       );
     }
   }
 
   render () {
-    const { value, container, disabled, intl } = this.props;
+    const { value, container, intl } = this.props;
     const { open, placement } = this.state;
 
     const valueOption = this.options.find(item => item.value === value);
@@ -268,7 +267,6 @@ class PrivacyDropdown extends React.PureComponent {
             onMouseDown={this.handleMouseDown}
             onKeyDown={this.handleButtonKeyDown}
             style={{ height: null, lineHeight: '27px' }}
-            disabled={disabled}
           />
         </div>
 

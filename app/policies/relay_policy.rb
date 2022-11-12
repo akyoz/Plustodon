@@ -2,6 +2,6 @@
 
 class RelayPolicy < ApplicationPolicy
   def update?
-    role.can?(:manage_federation)
+    admin?
   end
 end

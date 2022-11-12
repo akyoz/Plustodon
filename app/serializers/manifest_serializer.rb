@@ -4,43 +4,35 @@ class ManifestSerializer < ActiveModel::Serializer
   include RoutingHelper
   include ActionView::Helpers::TextHelper
 
-  ICON_SIZES = %w(
-    36
-    48
-    72
-    96
-    144
-    192
-    256
-    384
-    512
-  ).freeze
-
-  attributes :name, :short_name,
+  attributes :name, :short_name, :description,
              :icons, :theme_color, :background_color,
              :display, :start_url, :scope,
              :share_target, :shortcuts
 
   def name
-    object.title
+    object.site_title
   end
 
   def short_name
-    object.title
+    object.site_title
+  end
+
+  def description
+    strip_tags(object.site_short_description.presence || I18n.t('about.about_mastodon_html'))
   end
 
   def icons
-    ICON_SIZES.map do |size|
+    [
       {
-        src: full_pack_url("media/icons/android-chrome-#{size}x#{size}.png"),
-        sizes: "#{size}x#{size}",
+        src: '/android-chrome-192x192.png',
+        sizes: '192x192',
         type: 'image/png',
-      }
-    end
+      },
+    ]
   end
 
   def theme_color
-    '#191b22'
+    '#282c37'
   end
 
   def background_color
@@ -52,7 +44,7 @@ class ManifestSerializer < ActiveModel::Serializer
   end
 
   def start_url
-    '/home'
+    '/web/timelines/home'
   end
 
   def scope
@@ -76,12 +68,37 @@ class ManifestSerializer < ActiveModel::Serializer
   def shortcuts
     [
       {
-        name: 'Compose new post',
-        url: '/publish',
+        name: 'New toot',
+        url: '/web/statuses/new',
+        icons: [
+          {
+            src: '/shortcuts/new-status.png',
+            type: 'image/png',
+            sizes: '192x192',
+          },
+        ],
       },
       {
         name: 'Notifications',
-        url: '/notifications',
+        url: '/web/notifications',
+        icons: [
+          {
+            src: '/shortcuts/notifications.png',
+            type: 'image/png',
+            sizes: '192x192',
+          },
+        ],
+      },
+      {
+        name: 'Direct messages',
+        url: '/web/timelines/direct',
+        icons: [
+          {
+            src: '/shortcuts/direct.png',
+            type: 'image/png',
+            sizes: '192x192',
+          },
+        ],
       },
     ]
   end

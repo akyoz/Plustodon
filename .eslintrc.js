@@ -12,7 +12,7 @@ module.exports = {
     ATTACHMENT_HOST: false,
   },
 
-  parser: '@babel/eslint-parser',
+  parser: 'babel-eslint',
 
   plugins: [
     'react',
@@ -27,7 +27,7 @@ module.exports = {
       experimentalObjectRestSpread: true,
       jsx: true,
     },
-    ecmaVersion: 2021,
+    ecmaVersion: 2018,
   },
 
   settings: {
@@ -79,11 +79,6 @@ module.exports = {
     'no-irregular-whitespace': 'error',
     'no-mixed-spaces-and-tabs': 'warn',
     'no-nested-ternary': 'warn',
-    'no-restricted-properties': [
-      'error',
-      { property: 'substring', message: 'Use .slice instead of .substring.' },
-      { property: 'substr', message: 'Use .slice instead of .substr.' },
-    ],
     'no-trailing-spaces': 'warn',
     'no-undef': 'error',
     'no-unreachable': 'error',

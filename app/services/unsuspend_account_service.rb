@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 class UnsuspendAccountService < BaseService
-  include Payloadable
   def call(account)
     @account = account
 

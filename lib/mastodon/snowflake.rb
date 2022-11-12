@@ -84,7 +84,10 @@ module Mastodon::Snowflake
               -- Take the first two bytes (four hex characters)
               substr(
                 -- Of the MD5 hash of the data we documented
-                md5(table_name || '#{SecureRandom.hex(16)}' || time_part::text),
+                md5(table_name ||
+                  '#{SecureRandom.hex(16)}' ||
+                  time_part::text
+                ),
                 1, 4
               )
             -- And turn it into a bigint
@@ -135,11 +138,10 @@ module Mastodon::Snowflake
       end
     end
 
-    def id_at(timestamp, with_random: true)
-      id  = timestamp.to_i * 1000
-      id += rand(1000) if with_random
+    def id_at(timestamp)
+      id  = timestamp.to_i * 1000 + rand(1000)
       id  = id << 16
-      id += rand(2**16) if with_random
+      id += rand(2**16)
       id
     end
 

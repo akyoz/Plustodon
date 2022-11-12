@@ -2,18 +2,18 @@
 
 class AnnouncementPolicy < ApplicationPolicy
   def index?
-    role.can?(:manage_announcements)
+    staff?
   end
 
   def create?
-    role.can?(:manage_announcements)
+    admin?
   end
 
   def update?
-    role.can?(:manage_announcements)
+    admin?
   end
 
   def destroy?
-    role.can?(:manage_announcements)
+    admin?
   end
 end

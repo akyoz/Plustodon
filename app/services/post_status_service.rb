@@ -2,7 +2,6 @@
 
 class PostStatusService < BaseService
   include Redisable
-  include LanguagesHelper
 
   MIN_SCHEDULE_OFFSET = 5.minutes.freeze
 
@@ -92,18 +91,14 @@ class PostStatusService < BaseService
   end
 
   def postprocess_status!
-    Trends.tags.register(@status)
-    LinkCrawlWorker.perform_async(@status.id)
+    LinkCrawlWorker.perform_async(@status.id) unless @status.spoiler_text?
     DistributionWorker.perform_async(@status.id)
     ActivityPub::DistributionWorker.perform_async(@status.id)
     PollExpirationNotifyWorker.perform_at(@status.poll.expires_at, @status.poll.id) if @status.poll
   end
 
   def validate_media!
-    if @options[:media_ids].blank? || !@options[:media_ids].is_a?(Enumerable)
-      @media = []
-      return
-    end
+    return if @options[:media_ids].blank? || !@options[:media_ids].is_a?(Enumerable)
 
     raise Mastodon::ValidationError, I18n.t('media_attachments.validations.too_many') if @options[:media_ids].size > 4 || @options[:poll].present?
 
@@ -111,6 +106,10 @@ class PostStatusService < BaseService
 
     raise Mastodon::ValidationError, I18n.t('media_attachments.validations.images_and_video') if @media.size > 1 && @media.find(&:audio_or_video?)
     raise Mastodon::ValidationError, I18n.t('media_attachments.validations.not_ready') if @media.any?(&:not_processed?)
+  end
+
+  def language_from_option(str)
+    ISO_639.find(str)&.alpha2
   end
 
   def process_mentions_service
@@ -160,13 +159,12 @@ class PostStatusService < BaseService
     {
       text: @text,
       media_attachments: @media || [],
-      ordered_media_attachment_ids: (@options[:media_ids] || []).map(&:to_i) & @media.map(&:id),
       thread: @in_reply_to,
       poll_attributes: poll_attributes,
       sensitive: @sensitive,
       spoiler_text: @options[:spoiler_text] || '',
       visibility: @visibility,
-      language: valid_locale_cascade(@options[:language], @account.user&.preferred_posting_language, I18n.default_locale),
+      language: language_from_option(@options[:language]) || @account.user&.setting_default_language&.presence || LanguageDetector.instance.detect(@text, @account),
       application: @options[:application],
       rate_limit: @options[:with_rate_limit],
     }.compact

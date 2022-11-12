@@ -11,15 +11,13 @@ def setup_redis_env_url(prefix = nil, defaults = true)
   port     = ENV.fetch(prefix + 'REDIS_PORT') { 6379 if defaults }
   db       = ENV.fetch(prefix + 'REDIS_DB') { 0 if defaults }
 
-  ENV[prefix + 'REDIS_URL'] = begin
-    if [password, host, port, db].all?(&:nil?)
-      ENV['REDIS_URL']
-    else
-      Addressable::URI.parse("redis://#{host}:#{port}/#{db}").tap do |uri|
-        uri.password = password if password.present?
-      end.normalize.to_str
-    end
-  end
+  ENV[prefix + 'REDIS_URL'] = if [password, host, port, db].all?(&:nil?)
+                                ENV['REDIS_URL']
+                              else
+                                Addressable::URI.parse("redis://#{host}:#{port}/#{db}").tap do |uri|
+                                  uri.password = password if password.present?
+                                end.normalize.to_str
+                              end
 end
 
 setup_redis_env_url
@@ -35,8 +33,6 @@ REDIS_CACHE_PARAMS = {
   url: ENV['CACHE_REDIS_URL'],
   expires_in: 10.minutes,
   namespace: cache_namespace,
-  pool_size: Sidekiq.server? ? Sidekiq.options[:concurrency] : Integer(ENV['MAX_THREADS'] || 5),
-  pool_timeout: 5,
 }.freeze
 
 REDIS_SIDEKIQ_PARAMS = {
@@ -44,7 +40,3 @@ REDIS_SIDEKIQ_PARAMS = {
   url: ENV['SIDEKIQ_REDIS_URL'],
   namespace: sidekiq_namespace,
 }.freeze
-
-if Rails.env.test?
-  ENV['REDIS_NAMESPACE'] = "mastodon_test#{ENV['TEST_ENV_NUMBER']}"
-end

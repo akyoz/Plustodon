@@ -12,9 +12,6 @@ Environment="STREAMING_CLUSTER_NUM=1"
 ExecStart=/usr/bin/node ./streaming
 TimeoutSec=15
 Restart=always
-# Proc filesystem
-ProcSubset=pid
-ProtectProc=invisible
 # Capabilities
 CapabilityBoundingSet=
 # Security
@@ -37,15 +34,11 @@ RestrictNamespaces=true
 LockPersonality=true
 RestrictRealtime=true
 RestrictSUIDSGID=true
-RemoveIPC=true
 PrivateMounts=true
 ProtectClock=true
 # System Call Filtering
 SystemCallArchitectures=native
-SystemCallFilter=~@cpu-emulation @debug @keyring @ipc @memlock @mount @obsolete @privileged @resources @setuid
-SystemCallFilter=pipe
-SystemCallFilter=pipe2
-ReadWritePaths=/home/mastodon/live
+SystemCallFilter=~@clock @cpu-emulation @debug @keyring @module @mount @obsolete @privileged @raw-io @reboot @resources @setuid @swap
 
 [Install]
 WantedBy=multi-user.target

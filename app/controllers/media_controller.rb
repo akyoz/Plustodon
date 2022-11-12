@@ -27,12 +27,7 @@ class MediaController < ApplicationController
   private
 
   def set_media_attachment
-    id = params[:id] || params[:medium_id]
-    return if id.nil?
-
-    scope = MediaAttachment.local.attached
-    # If id is 19 characters long, it's a shortcode, otherwise it's an identifier
-    @media_attachment = id.size == 19 ? scope.find_by!(shortcode: id) : scope.find_by!(id: id)
+    @media_attachment = MediaAttachment.attached.find_by!(shortcode: params[:id] || params[:medium_id])
   end
 
   def verify_permitted_status!

@@ -2,14 +2,14 @@
 
 class FollowRecommendationPolicy < ApplicationPolicy
   def show?
-    role.can?(:manage_taxonomies)
+    staff?
   end
 
   def suppress?
-    role.can?(:manage_taxonomies)
+    staff?
   end
 
   def unsuppress?
-    role.can?(:manage_taxonomies)
+    staff?
   end
 end

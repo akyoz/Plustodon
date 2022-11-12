@@ -8,7 +8,7 @@
         = render 'application/card', account: current_account.moved_to_account
       .fields-row__column.fields-group.fields-row__column-6
         %p.hint
-          %span.positive-hint= t('migrations.redirecting_to', acct: current_account.moved_to_account.pretty_acct)
+          %span.positive-hint= t('migrations.redirecting_to', acct: current_account.moved_to_account.acct)
 
         %p.hint= t('migrations.cancel_explanation')
 
@@ -48,7 +48,7 @@
 
     .fields-row__column.fields-group.fields-row__column-6
       - if current_user.encrypted_password.present?
-        = f.input :current_password, wrapper: :with_block_label, input_html: { :autocomplete => 'current-password' }, required: true, disabled: on_cooldown?
+        = f.input :current_password, wrapper: :with_block_label, input_html: { :autocomplete => 'off' }, required: true, disabled: on_cooldown?
       - else
         = f.input :current_username, wrapper: :with_block_label, input_html: { :autocomplete => 'off' }, required: true, disabled: on_cooldown?
 

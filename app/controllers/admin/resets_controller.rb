@@ -6,9 +6,9 @@ module Admin
 
     def create
       authorize @user, :reset_password?
-      @user.reset_password!
+      @user.send_reset_password_instructions
       log_action :reset_password, @user
-      redirect_to admin_account_path(@user.account_id)
+      redirect_to admin_accounts_path
     end
   end
 end

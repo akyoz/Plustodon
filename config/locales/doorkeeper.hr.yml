@@ -53,6 +53,8 @@ hr:
       error:
         title: Došlo je do greške
       new:
+        able_to: Moći će
+        prompt: Aplikacija %{client_name} zatražila je pristup Vašem računu
         title: Potrebna je autorizacija
     authorized_applications:
       buttons:
@@ -60,6 +62,8 @@ hr:
       confirmations:
         revoke: Jeste li sigurni?
       index:
+        application: Aplikacija
+        created_at: Ovlašeno
         title: Vaše autorizirane aplikacije
     errors:
       messages:

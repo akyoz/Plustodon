@@ -3,7 +3,7 @@ require 'rails_helper'
 RSpec.describe Api::V1::Statuses::FavouritedByAccountsController, type: :controller do
   render_views
 
-  let(:user)  { Fabricate(:user) }
+  let(:user)  { Fabricate(:user, account: Fabricate(:account, username: 'alice')) }
   let(:app)   { Fabricate(:application, name: 'Test app', website: 'http://testapp.com') }
   let(:token) { Fabricate(:accessible_access_token, resource_owner_id: user.id, application: app, scopes: 'read:accounts') }
   let(:alice) { Fabricate(:account) }
@@ -56,7 +56,7 @@ RSpec.describe Api::V1::Statuses::FavouritedByAccountsController, type: :control
           Fabricate(:favourite, status: status)
         end
 
-        it 'returns http unauthorized' do
+        it 'returns http unautharized' do
           get :index, params: { status_id: status.id }
           expect(response).to have_http_status(404)
         end

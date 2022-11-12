@@ -8,31 +8,26 @@
       .sidebar-wrapper__inner
         .sidebar
           = link_to root_path do
-            = render_logo
+            = image_pack_tag 'logo.svg', class: 'logo', alt: 'Mastodon'
 
           .sidebar__toggle
             .sidebar__toggle__logo
               = link_to root_path do
-                = logo_as_symbol(:wordmark)
+                = svg_logo_full
 
-            = link_to '#', class: 'sidebar__toggle__icon', 'aria-label': t('navigation.toggle_menu'), 'aria-expanded': 'false' do
+            = link_to '#', class: 'sidebar__toggle__icon' do
               = fa_icon 'bars'
-              = fa_icon 'times'
 
           = render_navigation
 
     .content-wrapper
       .content
-        .content__heading
-          - if content_for?(:heading)
-            = yield :heading
-          - else
-            .content__heading__row
-              %h2= yield :page_title
+        .content-heading
+          %h2= yield :page_title
 
-              - if content_for?(:heading_actions)
-                .content__heading__actions
-                  = yield :heading_actions
+          - if :heading_actions
+            .content-heading-actions
+              = yield :heading_actions
 
         = render 'application/flashes'
 

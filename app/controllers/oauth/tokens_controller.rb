@@ -2,8 +2,7 @@
 
 class Oauth::TokensController < Doorkeeper::TokensController
   def revoke
-    unsubscribe_for_token if token.present? && authorized? && token.accessible?
-
+    unsubscribe_for_token if authorized? && token.accessible?
     super
   end
 

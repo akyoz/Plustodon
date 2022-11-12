@@ -1,44 +1,34 @@
+import * as registerPushNotifications from './actions/push_notifications';
+import { setupBrowserNotifications } from './actions/notifications';
+import { default as Mastodon, store } from './containers/mastodon';
 import React from 'react';
 import ReactDOM from 'react-dom';
-import { setupBrowserNotifications } from 'mastodon/actions/notifications';
-import Mastodon, { store } from 'mastodon/containers/mastodon';
-import { me } from 'mastodon/initial_state';
-import ready from 'mastodon/ready';
+import ready from './ready';
 
-const perf = require('mastodon/performance');
+const perf = require('./performance');
 
-/**
- * @returns {Promise<void>}
- */
 function main() {
   perf.start('main()');
 
-  return ready(async () => {
+  if (window.history && history.replaceState) {
+    const { pathname, search, hash } = window.location;
+    const path = pathname + search + hash;
+    if (!(/^\/web($|\/)/).test(path)) {
+      history.replaceState(null, document.title, `/web${path}`);
+    }
+  }
+
+  ready(() => {
     const mountNode = document.getElementById('mastodon');
     const props = JSON.parse(mountNode.getAttribute('data-props'));
 
     ReactDOM.render(<Mastodon {...props} />, mountNode);
     store.dispatch(setupBrowserNotifications());
-
-    if (process.env.NODE_ENV === 'production' && me && 'serviceWorker' in navigator) {
-      const { Workbox } = await import('workbox-window');
-      const wb = new Workbox('/sw.js');
-      /** @type {ServiceWorkerRegistration} */
-      let registration;
-
-      try {
-        registration = await wb.register();
-      } catch (err) {
-        console.error(err);
-      }
-
-      if (registration) {
-        const registerPushNotifications = await import('mastodon/actions/push_notifications');
-
-        store.dispatch(registerPushNotifications.register());
-      }
+    if (process.env.NODE_ENV === 'production') {
+      // avoid offline in dev mode because it's harder to debug
+      require('offline-plugin/runtime').install();
+      store.dispatch(registerPushNotifications.register());
     }
-
     perf.stop('main()');
   });
 }

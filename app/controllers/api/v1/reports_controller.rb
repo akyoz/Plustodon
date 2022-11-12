@@ -10,7 +10,9 @@ class Api::V1::ReportsController < Api::BaseController
     @report = ReportService.new.call(
       current_account,
       reported_account,
-      report_params
+      status_ids: reported_status_ids,
+      comment: report_params[:comment],
+      forward: report_params[:forward]
     )
 
     render json: @report, serializer: REST::ReportSerializer
@@ -18,11 +20,19 @@ class Api::V1::ReportsController < Api::BaseController
 
   private
 
+  def reported_status_ids
+    reported_account.statuses.with_discarded.find(status_ids).pluck(:id)
+  end
+
+  def status_ids
+    Array(report_params[:status_ids])
+  end
+
   def reported_account
     Account.find(report_params[:account_id])
   end
 
   def report_params
-    params.permit(:account_id, :comment, :category, :forward, status_ids: [], rule_ids: [])
+    params.permit(:account_id, :comment, :forward, status_ids: [])
   end
 end

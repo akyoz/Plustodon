@@ -65,22 +65,22 @@ describe ApplicationController, type: :controller do
         get :show
 
         expect_updated_sign_in_at(user)
-        expect(redis.get("account:#{user.account_id}:regeneration")).to eq 'true'
+        expect(Redis.current.get("account:#{user.account_id}:regeneration")).to eq 'true'
         expect(RegenerationWorker).to have_received(:perform_async)
       end
 
       it 'sets the regeneration marker to expire' do
         allow(RegenerationWorker).to receive(:perform_async)
         get :show
-        expect(redis.ttl("account:#{user.account_id}:regeneration")).to be >= 0
+        expect(Redis.current.ttl("account:#{user.account_id}:regeneration")).to be >= 0
       end
 
       it 'regenerates feed when sign in is older than two weeks' do
         get :show
 
         expect_updated_sign_in_at(user)
-        expect(redis.zcard(FeedManager.instance.key(:home, user.account_id))).to eq 3
-        expect(redis.get("account:#{user.account_id}:regeneration")).to be_nil
+        expect(Redis.current.zcard(FeedManager.instance.key(:home, user.account_id))).to eq 3
+        expect(Redis.current.get("account:#{user.account_id}:regeneration")).to be_nil
       end
     end
 

@@ -113,13 +113,7 @@ RSpec.describe ActivityPub::Activity::Announce do
       let!(:relay_account) { Fabricate(:account, inbox_url: 'https://relay.example.com/inbox') }
       let!(:relay) { Fabricate(:relay, inbox_url: 'https://relay.example.com/inbox') }
 
-      let(:object_json) { 'https://example.com/actor/hello-world' }
-
-      subject { described_class.new(json, sender, relayed_through_actor: relay_account) }
-
-      before do
-        stub_request(:get, 'https://example.com/actor/hello-world').to_return(body: Oj.dump(unknown_object_json))
-      end
+      subject { described_class.new(json, sender, relayed_through_account: relay_account) }
 
       context 'and the relay is enabled' do
         before do
@@ -127,9 +121,18 @@ RSpec.describe ActivityPub::Activity::Announce do
           subject.perform
         end
 
-        it 'fetches the remote status' do
-          expect(a_request(:get, 'https://example.com/actor/hello-world')).to have_been_made
-          expect(Status.find_by(uri: 'https://example.com/actor/hello-world').text).to eq 'Hello world'
+        let(:object_json) do
+          {
+            id: 'https://example.com/actor#bar',
+            type: 'Note',
+            content: 'Lorem ipsum',
+            to: 'http://example.com/followers',
+            attributedTo: 'https://example.com/actor',
+          }
+        end
+
+        it 'creates a reblog by sender of status' do
+          expect(sender.statuses.count).to eq 2
         end
       end
 
@@ -138,9 +141,14 @@ RSpec.describe ActivityPub::Activity::Announce do
           subject.perform
         end
 
-        it 'does not fetch the remote status' do
-          expect(a_request(:get, 'https://example.com/actor/hello-world')).not_to have_been_made
-          expect(Status.find_by(uri: 'https://example.com/actor/hello-world')).to be_nil
+        let(:object_json) do
+          {
+            id: 'https://example.com/actor#bar',
+            type: 'Note',
+            content: 'Lorem ipsum',
+            to: 'http://example.com/followers',
+            attributedTo: 'https://example.com/actor',
+          }
         end
 
         it 'does not create anything' do

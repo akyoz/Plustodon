@@ -17,8 +17,6 @@ class FavouriteService < BaseService
 
     favourite = Favourite.create!(account: account, status: status)
 
-    Trends.statuses.register(status)
-
     create_notification(favourite)
     bump_potential_friendship(account, status)
 
@@ -31,7 +29,7 @@ class FavouriteService < BaseService
     status = favourite.status
 
     if status.account.local?
-      LocalNotificationWorker.perform_async(status.account_id, favourite.id, 'Favourite', 'favourite')
+      NotifyService.new.call(status.account, :favourite, favourite)
     elsif status.account.activitypub?
       ActivityPub::DeliveryWorker.perform_async(build_json(favourite), favourite.account_id, status.account.inbox_url)
     end

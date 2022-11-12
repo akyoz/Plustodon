@@ -8,6 +8,8 @@ class ApplicationPolicy
     @record          = record
   end
 
+  delegate :admin?, :moderator?, :staff?, to: :current_user, allow_nil: true
+
   private
 
   def current_user
@@ -16,9 +18,5 @@ class ApplicationPolicy
 
   def user_signed_in?
     !current_user.nil?
-  end
-
-  def role
-    current_user&.role || UserRole.nobody
   end
 end

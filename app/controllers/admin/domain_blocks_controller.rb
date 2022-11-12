@@ -56,6 +56,10 @@ module Admin
       end
     end
 
+    def show
+      authorize @domain_block, :show?
+    end
+
     def destroy
       authorize @domain_block, :destroy?
       UnblockDomainService.new.call(@domain_block)

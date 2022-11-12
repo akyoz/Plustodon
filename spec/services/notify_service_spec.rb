@@ -1,7 +1,9 @@
 require 'rails_helper'
 
 RSpec.describe NotifyService, type: :service do
-  subject { described_class.new.call(recipient, type, activity) }
+  subject do
+    -> { described_class.new.call(recipient, type, activity) }
+  end
 
   let(:user) { Fabricate(:user) }
   let(:recipient) { user.account }
@@ -9,42 +11,42 @@ RSpec.describe NotifyService, type: :service do
   let(:activity) { Fabricate(:follow, account: sender, target_account: recipient) }
   let(:type) { :follow }
 
-  it { expect { subject }.to change(Notification, :count).by(1) }
+  it { is_expected.to change(Notification, :count).by(1) }
 
   it 'does not notify when sender is blocked' do
     recipient.block!(sender)
-    expect { subject }.to_not change(Notification, :count)
+    is_expected.to_not change(Notification, :count)
   end
 
   it 'does not notify when sender is muted with hide_notifications' do
     recipient.mute!(sender, notifications: true)
-    expect { subject }.to_not change(Notification, :count)
+    is_expected.to_not change(Notification, :count)
   end
 
   it 'does notify when sender is muted without hide_notifications' do
     recipient.mute!(sender, notifications: false)
-    expect { subject }.to change(Notification, :count)
+    is_expected.to change(Notification, :count)
   end
 
   it 'does not notify when sender\'s domain is blocked' do
     recipient.block_domain!(sender.domain)
-    expect { subject }.to_not change(Notification, :count)
+    is_expected.to_not change(Notification, :count)
   end
 
   it 'does still notify when sender\'s domain is blocked but sender is followed' do
     recipient.block_domain!(sender.domain)
     recipient.follow!(sender)
-    expect { subject }.to change(Notification, :count)
+    is_expected.to change(Notification, :count)
   end
 
   it 'does not notify when sender is silenced and not followed' do
     sender.silence!
-    expect { subject }.to_not change(Notification, :count)
+    is_expected.to_not change(Notification, :count)
   end
 
   it 'does not notify when recipient is suspended' do
     recipient.suspend!
-    expect { subject }.to_not change(Notification, :count)
+    is_expected.to_not change(Notification, :count)
   end
 
   context 'for direct messages' do
@@ -59,7 +61,7 @@ RSpec.describe NotifyService, type: :service do
       let(:enabled) { true }
 
       it 'does not notify' do
-        expect { subject }.to_not change(Notification, :count)
+        is_expected.to_not change(Notification, :count)
       end
 
       context 'if the message chain is initiated by recipient, but is not direct message' do
@@ -68,7 +70,7 @@ RSpec.describe NotifyService, type: :service do
         let(:activity) { Fabricate(:mention, account: recipient, status: Fabricate(:status, account: sender, visibility: :direct, thread: reply_to)) }
 
         it 'does not notify' do
-          expect { subject }.to_not change(Notification, :count)
+          is_expected.to_not change(Notification, :count)
         end
       end
 
@@ -79,7 +81,7 @@ RSpec.describe NotifyService, type: :service do
         let(:activity) { Fabricate(:mention, account: recipient, status: Fabricate(:status, account: sender, visibility: :direct, thread: dummy_reply)) }
 
         it 'does not notify' do
-          expect { subject }.to_not change(Notification, :count)
+          is_expected.to_not change(Notification, :count)
         end
       end
 
@@ -89,7 +91,7 @@ RSpec.describe NotifyService, type: :service do
         let(:activity) { Fabricate(:mention, account: recipient, status: Fabricate(:status, account: sender, visibility: :direct, thread: reply_to)) }
 
         it 'does notify' do
-          expect { subject }.to change(Notification, :count)
+          is_expected.to change(Notification, :count)
         end
       end
     end
@@ -98,7 +100,7 @@ RSpec.describe NotifyService, type: :service do
       let(:enabled) { false }
 
       it 'does notify' do
-        expect { subject }.to change(Notification, :count)
+        is_expected.to change(Notification, :count)
       end
     end
   end
@@ -110,17 +112,17 @@ RSpec.describe NotifyService, type: :service do
 
     it 'shows reblogs by default' do
       recipient.follow!(sender)
-      expect { subject }.to change(Notification, :count)
+      is_expected.to change(Notification, :count)
     end
 
     it 'shows reblogs when explicitly enabled' do
       recipient.follow!(sender, reblogs: true)
-      expect { subject }.to change(Notification, :count)
+      is_expected.to change(Notification, :count)
     end
 
     it 'shows reblogs when disabled' do
       recipient.follow!(sender, reblogs: false)
-      expect { subject }.to change(Notification, :count)
+      is_expected.to change(Notification, :count)
     end
   end
 
@@ -132,12 +134,12 @@ RSpec.describe NotifyService, type: :service do
 
     it 'does not notify when conversation is muted' do
       recipient.mute_conversation!(activity.status.conversation)
-      expect { subject }.to_not change(Notification, :count)
+      is_expected.to_not change(Notification, :count)
     end
 
     it 'does not notify when it is a reply to a blocked user' do
       recipient.block!(asshole)
-      expect { subject }.to_not change(Notification, :count)
+      is_expected.to_not change(Notification, :count)
     end
   end
 
@@ -145,7 +147,7 @@ RSpec.describe NotifyService, type: :service do
     let(:sender) { recipient }
 
     it 'does not notify when recipient is the sender' do
-      expect { subject }.to_not change(Notification, :count)
+      is_expected.to_not change(Notification, :count)
     end
   end
 
@@ -161,7 +163,7 @@ RSpec.describe NotifyService, type: :service do
       let(:enabled) { true }
 
       it 'sends email' do
-        expect { subject }.to change(ActionMailer::Base.deliveries, :count).by(1)
+        is_expected.to change(ActionMailer::Base.deliveries, :count).by(1)
       end
     end
 
@@ -169,7 +171,7 @@ RSpec.describe NotifyService, type: :service do
       let(:enabled) { false }
 
       it "doesn't send email" do
-        expect { subject }.to_not change(ActionMailer::Base.deliveries, :count).from(0)
+        is_expected.to_not change(ActionMailer::Base.deliveries, :count).from(0)
       end
     end
   end

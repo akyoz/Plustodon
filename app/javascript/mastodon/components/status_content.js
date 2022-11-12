@@ -1,69 +1,29 @@
 import React from 'react';
 import ImmutablePropTypes from 'react-immutable-proptypes';
 import PropTypes from 'prop-types';
-import { FormattedMessage, injectIntl } from 'react-intl';
+import { FormattedMessage } from 'react-intl';
 import Permalink from './permalink';
 import classnames from 'classnames';
 import PollContainer from 'mastodon/containers/poll_container';
 import Icon from 'mastodon/components/icon';
-import { autoPlayGif, languages as preloadedLanguages, translationEnabled } from 'mastodon/initial_state';
+import { autoPlayGif } from 'mastodon/initial_state';
 
 const MAX_HEIGHT = 642; // 20px * 32 (+ 2px padding at the top)
 
-class TranslateButton extends React.PureComponent {
-
-  static propTypes = {
-    translation: ImmutablePropTypes.map,
-    onClick: PropTypes.func,
-  };
-
-  render () {
-    const { translation, onClick } = this.props;
-
-    if (translation) {
-      const language     = preloadedLanguages.find(lang => lang[0] === translation.get('detected_source_language'));
-      const languageName = language ? language[2] : translation.get('detected_source_language');
-      const provider     = translation.get('provider');
-
-      return (
-        <div className='translate-button'>
-          <div className='translate-button__meta'>
-            <FormattedMessage id='status.translated_from_with' defaultMessage='Translated from {lang} using {provider}' values={{ lang: languageName, provider }} />
-          </div>
-
-          <button className='link-button' onClick={onClick}>
-            <FormattedMessage id='status.show_original' defaultMessage='Show original' />
-          </button>
-        </div>
-      );
-    }
-
-    return (
-      <button className='status__content__read-more-button' onClick={onClick}>
-        <FormattedMessage id='status.translate' defaultMessage='Translate' />
-      </button>
-    );
-  }
-
-}
-
-export default @injectIntl
-class StatusContent extends React.PureComponent {
+export default class StatusContent extends React.PureComponent {
 
   static contextTypes = {
     router: PropTypes.object,
-    identity: PropTypes.object,
   };
 
   static propTypes = {
     status: ImmutablePropTypes.map.isRequired,
     expanded: PropTypes.bool,
+    showThread: PropTypes.bool,
     onExpandedToggle: PropTypes.func,
-    onTranslate: PropTypes.func,
     onClick: PropTypes.func,
     collapsable: PropTypes.bool,
     onCollapsedToggle: PropTypes.func,
-    intl: PropTypes.object,
   };
 
   state = {
@@ -97,6 +57,9 @@ class StatusContent extends React.PureComponent {
         link.setAttribute('title', link.href);
         link.classList.add('unhandled-link');
       }
+
+      link.setAttribute('target', '_blank');
+      link.setAttribute('rel', 'noopener noreferrer');
     }
 
     if (this.props.status.get('collapsed', null) === null) {
@@ -149,7 +112,7 @@ class StatusContent extends React.PureComponent {
   onMentionClick = (mention, e) => {
     if (this.context.router && e.button === 0 && !(e.ctrlKey || e.metaKey)) {
       e.preventDefault();
-      this.context.router.history.push(`/@${mention.get('acct')}`);
+      this.context.router.history.push(`/accounts/${mention.get('id')}`);
     }
   }
 
@@ -158,7 +121,7 @@ class StatusContent extends React.PureComponent {
 
     if (this.context.router && e.button === 0 && !(e.ctrlKey || e.metaKey)) {
       e.preventDefault();
-      this.context.router.history.push(`/tags/${hashtag}`);
+      this.context.router.history.push(`/timelines/tag/${hashtag}`);
     }
   }
 
@@ -200,49 +163,42 @@ class StatusContent extends React.PureComponent {
     }
   }
 
-  handleTranslate = () => {
-    this.props.onTranslate();
-  }
-
   setRef = (c) => {
     this.node = c;
   }
 
   render () {
-    const { status, intl } = this.props;
+    const { status } = this.props;
 
     const hidden = this.props.onExpandedToggle ? !this.props.expanded : this.state.hidden;
     const renderReadMore = this.props.onClick && status.get('collapsed');
-    const renderTranslate = translationEnabled && this.context.identity.signedIn && this.props.onTranslate && ['public', 'unlisted'].includes(status.get('visibility')) && status.get('contentHtml').length > 0 && status.get('language') !== null && intl.locale !== status.get('language');
+    const renderViewThread = this.props.showThread && status.get('in_reply_to_id') && status.get('in_reply_to_account_id') === status.getIn(['account', 'id']);
 
-    const content = { __html: status.get('translation') ? status.getIn(['translation', 'content']) : status.get('contentHtml') };
+    const content = { __html: status.get('contentHtml') };
     const spoilerContent = { __html: status.get('spoilerHtml') };
-    const lang = status.get('translation') ? intl.locale : status.get('language');
     const classNames = classnames('status__content', {
       'status__content--with-action': this.props.onClick && this.context.router,
       'status__content--with-spoiler': status.get('spoiler_text').length > 0,
       'status__content--collapsed': renderReadMore,
     });
 
-    const readMoreButton = renderReadMore && (
-      <button className='status__content__read-more-button' onClick={this.props.onClick} key='read-more'>
-        <FormattedMessage id='status.read_more' defaultMessage='Read more' /><Icon id='angle-right' fixedWidth />
+    const showThreadButton = (
+      <button className='status__content__read-more-button' onClick={this.props.onClick}>
+        <FormattedMessage id='status.show_thread' defaultMessage='Show thread' />
       </button>
     );
 
-    const translateButton = renderTranslate && (
-      <TranslateButton onClick={this.handleTranslate} translation={status.get('translation')} />
-    );
-
-    const poll = !!status.get('poll') && (
-      <PollContainer pollId={status.get('poll')} />
+    const readMoreButton = (
+      <button className='status__content__read-more-button' onClick={this.props.onClick} key='read-more'>
+        <FormattedMessage id='status.read_more' defaultMessage='Read more' /><Icon id='angle-right' fixedWidth />
+      </button>
     );
 
     if (status.get('spoiler_text').length > 0) {
       let mentionsPlaceholder = '';
 
       const mentionLinks = status.get('mentions').map(item => (
-        <Permalink to={`/@${item.get('acct')}`} href={item.get('url')} key={item.get('id')} className='mention'>
+        <Permalink to={`/accounts/${item.get('id')}`} href={item.get('url')} key={item.get('id')} className='mention'>
           @<span>{item.get('username')}</span>
         </Permalink>
       )).reduce((aggregate, item) => [...aggregate, item, ' '], []);
@@ -256,39 +212,44 @@ class StatusContent extends React.PureComponent {
       return (
         <div className={classNames} ref={this.setRef} tabIndex='0' onMouseDown={this.handleMouseDown} onMouseUp={this.handleMouseUp} onMouseEnter={this.handleMouseEnter} onMouseLeave={this.handleMouseLeave}>
           <p style={{ marginBottom: hidden && status.get('mentions').isEmpty() ? '0px' : null }}>
-            <span dangerouslySetInnerHTML={spoilerContent} className='translate' lang={lang} />
+            <span dangerouslySetInnerHTML={spoilerContent} className='translate' />
             {' '}
-            <button type='button' className={`status__content__spoiler-link ${hidden ? 'status__content__spoiler-link--show-more' : 'status__content__spoiler-link--show-less'}`} onClick={this.handleSpoilerClick} aria-expanded={!hidden}>{toggleText}</button>
+            <button tabIndex='0' className={`status__content__spoiler-link ${hidden ? 'status__content__spoiler-link--show-more' : 'status__content__spoiler-link--show-less'}`} onClick={this.handleSpoilerClick}>{toggleText}</button>
           </p>
 
           {mentionsPlaceholder}
 
-          <div tabIndex={!hidden ? 0 : null} className={`status__content__text ${!hidden ? 'status__content__text--visible' : ''} translate`} lang={lang} dangerouslySetInnerHTML={content} />
+          <div tabIndex={!hidden ? 0 : null} className={`status__content__text ${!hidden ? 'status__content__text--visible' : ''} translate`} dangerouslySetInnerHTML={content} />
 
-          {!hidden && poll}
-          {!hidden && translateButton}
+          {!hidden && !!status.get('poll') && <PollContainer pollId={status.get('poll')} />}
+
+          {renderViewThread && showThreadButton}
         </div>
       );
     } else if (this.props.onClick) {
-      return (
-        <>
-          <div className={classNames} ref={this.setRef} tabIndex='0' onMouseDown={this.handleMouseDown} onMouseUp={this.handleMouseUp} key='status-content' onMouseEnter={this.handleMouseEnter} onMouseLeave={this.handleMouseLeave}>
-            <div className='status__content__text status__content__text--visible translate' lang={lang} dangerouslySetInnerHTML={content} />
+      const output = [
+        <div className={classNames} ref={this.setRef} tabIndex='0' onMouseDown={this.handleMouseDown} onMouseUp={this.handleMouseUp} key='status-content' onMouseEnter={this.handleMouseEnter} onMouseLeave={this.handleMouseLeave}>
+          <div className='status__content__text status__content__text--visible translate' dangerouslySetInnerHTML={content} />
 
-            {poll}
-            {translateButton}
-          </div>
+          {!!status.get('poll') && <PollContainer pollId={status.get('poll')} />}
 
-          {readMoreButton}
-        </>
-      );
+          {renderViewThread && showThreadButton}
+        </div>,
+      ];
+
+      if (renderReadMore) {
+        output.push(readMoreButton);
+      }
+
+      return output;
     } else {
       return (
         <div className={classNames} ref={this.setRef} tabIndex='0' onMouseEnter={this.handleMouseEnter} onMouseLeave={this.handleMouseLeave}>
-          <div className='status__content__text status__content__text--visible translate' lang={lang} dangerouslySetInnerHTML={content} />
+          <div className='status__content__text status__content__text--visible translate' dangerouslySetInnerHTML={content} />
 
-          {poll}
-          {translateButton}
+          {!!status.get('poll') && <PollContainer pollId={status.get('poll')} />}
+
+          {renderViewThread && showThreadButton}
         </div>
       );
     }

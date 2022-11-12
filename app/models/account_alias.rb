@@ -28,11 +28,6 @@ class AccountAlias < ApplicationRecord
     super(val.start_with?('@') ? val[1..-1] : val)
   end
 
-  def pretty_acct
-    username, domain = acct.split('@', 2)
-    domain.nil? ? username : "#{username}@#{Addressable::IDNA.to_unicode(domain)}"
-  end
-
   private
 
   def set_uri

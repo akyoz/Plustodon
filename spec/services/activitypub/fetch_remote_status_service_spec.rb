@@ -3,15 +3,14 @@ require 'rails_helper'
 RSpec.describe ActivityPub::FetchRemoteStatusService, type: :service do
   include ActionView::Helpers::TextHelper
 
-  let!(:sender) { Fabricate(:account, domain: 'foo.bar', uri: 'https://foo.bar') }
-  let!(:recipient) { Fabricate(:account) }
-
-  let(:existing_status) { nil }
+  let(:sender) { Fabricate(:account) }
+  let(:recipient) { Fabricate(:account) }
+  let(:valid_domain) { Rails.configuration.x.local_domain }
 
   let(:note) do
     {
       '@context': 'https://www.w3.org/ns/activitystreams',
-      id: "https://foo.bar/@foo/1234",
+      id: "https://#{valid_domain}/@foo/1234",
       type: 'Note',
       content: 'Lorem ipsum',
       attributedTo: ActivityPub::TagManager.instance.uri_for(sender),
@@ -20,14 +19,11 @@ RSpec.describe ActivityPub::FetchRemoteStatusService, type: :service do
 
   subject { described_class.new }
 
-  before do
-    stub_request(:get, 'https://foo.bar/watch?v=12345').to_return(status: 404, body: '')
-    stub_request(:get, object[:id]).to_return(body: Oj.dump(object))
-  end
-
   describe '#call' do
     before do
-      existing_status
+      sender.update(uri: ActivityPub::TagManager.instance.uri_for(sender))
+
+      stub_request(:head, 'https://example.com/watch?v=12345').to_return(status: 404, body: '')
       subject.call(object[:id], prefetched_body: Oj.dump(object))
     end
 
@@ -46,7 +42,7 @@ RSpec.describe ActivityPub::FetchRemoteStatusService, type: :service do
       let(:object) do
         {
           '@context': 'https://www.w3.org/ns/activitystreams',
-          id: "https://foo.bar/@foo/1234",
+          id: "https://#{valid_domain}/@foo/1234",
           type: 'Video',
           name: 'Nyan Cat 10 hours remix',
           attributedTo: ActivityPub::TagManager.instance.uri_for(sender),
@@ -54,13 +50,13 @@ RSpec.describe ActivityPub::FetchRemoteStatusService, type: :service do
             {
               type: 'Link',
               mimeType: 'application/x-bittorrent',
-              href: "https://foo.bar/12345.torrent",
+              href: "https://#{valid_domain}/12345.torrent",
             },
 
             {
               type: 'Link',
               mimeType: 'text/html',
-              href: "https://foo.bar/watch?v=12345",
+              href: "https://#{valid_domain}/watch?v=12345",
             },
           ],
         }
@@ -70,8 +66,8 @@ RSpec.describe ActivityPub::FetchRemoteStatusService, type: :service do
         status = sender.statuses.first
 
         expect(status).to_not be_nil
-        expect(status.url).to eq "https://foo.bar/watch?v=12345"
-        expect(strip_tags(status.text)).to eq "Nyan Cat 10 hours remixhttps://foo.bar/watch?v=12345"
+        expect(status.url).to eq "https://#{valid_domain}/watch?v=12345"
+        expect(strip_tags(status.text)).to eq "Nyan Cat 10 hours remix https://#{valid_domain}/watch?v=12345"
       end
     end
 
@@ -79,7 +75,7 @@ RSpec.describe ActivityPub::FetchRemoteStatusService, type: :service do
       let(:object) do
         {
           '@context': 'https://www.w3.org/ns/activitystreams',
-          id: "https://foo.bar/@foo/1234",
+          id: "https://#{valid_domain}/@foo/1234",
           type: 'Audio',
           name: 'Nyan Cat 10 hours remix',
           attributedTo: ActivityPub::TagManager.instance.uri_for(sender),
@@ -87,13 +83,13 @@ RSpec.describe ActivityPub::FetchRemoteStatusService, type: :service do
             {
               type: 'Link',
               mimeType: 'application/x-bittorrent',
-              href: "https://foo.bar/12345.torrent",
+              href: "https://#{valid_domain}/12345.torrent",
             },
 
             {
               type: 'Link',
               mimeType: 'text/html',
-              href: "https://foo.bar/watch?v=12345",
+              href: "https://#{valid_domain}/watch?v=12345",
             },
           ],
         }
@@ -103,8 +99,8 @@ RSpec.describe ActivityPub::FetchRemoteStatusService, type: :service do
         status = sender.statuses.first
 
         expect(status).to_not be_nil
-        expect(status.url).to eq "https://foo.bar/watch?v=12345"
-        expect(strip_tags(status.text)).to eq "Nyan Cat 10 hours remixhttps://foo.bar/watch?v=12345"
+        expect(status.url).to eq "https://#{valid_domain}/watch?v=12345"
+        expect(strip_tags(status.text)).to eq "Nyan Cat 10 hours remix https://#{valid_domain}/watch?v=12345"
       end
     end
 
@@ -112,7 +108,7 @@ RSpec.describe ActivityPub::FetchRemoteStatusService, type: :service do
       let(:object) do
         {
           '@context': 'https://www.w3.org/ns/activitystreams',
-          id: "https://foo.bar/@foo/1234",
+          id: "https://#{valid_domain}/@foo/1234",
           type: 'Event',
           name: "Let's change the world",
           attributedTo: ActivityPub::TagManager.instance.uri_for(sender)
@@ -123,8 +119,8 @@ RSpec.describe ActivityPub::FetchRemoteStatusService, type: :service do
         status = sender.statuses.first
 
         expect(status).to_not be_nil
-        expect(status.url).to eq "https://foo.bar/@foo/1234"
-        expect(strip_tags(status.text)).to eq "Let's change the worldhttps://foo.bar/@foo/1234"
+        expect(status.url).to eq "https://#{valid_domain}/@foo/1234"
+        expect(strip_tags(status.text)).to eq "Let's change the world https://#{valid_domain}/@foo/1234"
       end
     end
 
@@ -147,79 +143,6 @@ RSpec.describe ActivityPub::FetchRemoteStatusService, type: :service do
 
       it 'does not create status' do
         expect(sender.statuses.first).to be_nil
-      end
-    end
-
-    context 'with a valid Create activity' do
-      let(:object) do
-        {
-          '@context': 'https://www.w3.org/ns/activitystreams',
-          id: "https://foo.bar/@foo/1234/create",
-          type: 'Create',
-          actor: ActivityPub::TagManager.instance.uri_for(sender),
-          object: note,
-        }
-      end
-
-      it 'creates status' do
-        status = sender.statuses.first
-
-        expect(status).to_not be_nil
-        expect(status.uri).to eq note[:id]
-        expect(status.text).to eq note[:content]
-      end
-    end
-
-    context 'with a Create activity with a mismatching id' do
-      let(:object) do
-        {
-          '@context': 'https://www.w3.org/ns/activitystreams',
-          id: "https://foo.bar/@foo/1234/create",
-          type: 'Create',
-          actor: ActivityPub::TagManager.instance.uri_for(sender),
-          object: {
-            id: "https://real.address/@foo/1234",
-            type: 'Note',
-            content: 'Lorem ipsum',
-            attributedTo: ActivityPub::TagManager.instance.uri_for(sender),
-          },
-        }
-      end
-
-      it 'does not create status' do
-        expect(sender.statuses.first).to be_nil
-      end
-    end
-
-    context 'when status already exists' do
-      let(:existing_status) { Fabricate(:status, account: sender, text: 'Foo', uri: note[:id]) }
-
-      context 'with a Note object' do
-        let(:object) { note.merge(updated: '2021-09-08T22:39:25Z') }
-
-        it 'updates status' do
-          existing_status.reload
-          expect(existing_status.text).to eq 'Lorem ipsum'
-          expect(existing_status.edits).to_not be_empty
-        end
-      end
-
-      context 'with a Create activity' do
-        let(:object) do
-          {
-            '@context': 'https://www.w3.org/ns/activitystreams',
-            id: "https://foo.bar/@foo/1234/create",
-            type: 'Create',
-            actor: ActivityPub::TagManager.instance.uri_for(sender),
-            object: note.merge(updated: '2021-09-08T22:39:25Z'),
-          }
-        end
-
-        it 'updates status' do
-          existing_status.reload
-          expect(existing_status.text).to eq 'Lorem ipsum'
-          expect(existing_status.edits).to_not be_empty
-        end
       end
     end
   end

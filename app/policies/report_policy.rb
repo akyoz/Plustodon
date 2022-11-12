@@ -2,14 +2,14 @@
 
 class ReportPolicy < ApplicationPolicy
   def update?
-    role.can?(:manage_reports)
+    staff?
   end
 
   def index?
-    role.can?(:manage_reports)
+    staff?
   end
 
   def show?
-    role.can?(:manage_reports)
+    staff?
   end
 end

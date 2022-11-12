@@ -1,53 +1,19 @@
 # frozen_string_literal: true
 
-class InstancePresenter < ActiveModelSerializers::Model
-  attributes :domain, :title, :version, :source_url,
-             :description, :languages, :rules, :contact
+class InstancePresenter
+  delegate(
+    :site_contact_email,
+    :site_title,
+    :site_short_description,
+    :site_description,
+    :site_extended_description,
+    :site_terms,
+    :closed_registrations_message,
+    to: Setting
+  )
 
-  class ContactPresenter < ActiveModelSerializers::Model
-    attributes :email, :account
-
-    def email
-      Setting.site_contact_email
-    end
-
-    def account
-      username, domain = Setting.site_contact_username.strip.gsub(/\A@/, '').split('@', 2)
-      domain = nil if TagManager.instance.local_domain?(domain)
-      Account.find_remote(username, domain) if username.present?
-    end
-  end
-
-  def contact
-    ContactPresenter.new
-  end
-
-  def closed_registrations_message
-    Setting.closed_registrations_message
-  end
-
-  def description
-    Setting.site_short_description
-  end
-
-  def extended_description
-    Setting.site_extended_description
-  end
-
-  def privacy_policy
-    Setting.site_terms
-  end
-
-  def domain
-    Rails.configuration.x.local_domain
-  end
-
-  def title
-    Setting.site_title
-  end
-
-  def languages
-    [I18n.default_locale]
+  def contact_account
+    Account.find_local(Setting.site_contact_username.strip.gsub(/\A@/, ''))
   end
 
   def rules
@@ -58,8 +24,8 @@ class InstancePresenter < ActiveModelSerializers::Model
     Rails.cache.fetch('user_count') { User.confirmed.joins(:account).merge(Account.without_suspended).count }
   end
 
-  def active_user_count(num_weeks = 4)
-    Rails.cache.fetch("active_user_count/#{num_weeks}") { ActivityTracker.new('activity:logins', :unique).sum(num_weeks.weeks.ago) }
+  def active_user_count(weeks = 4)
+    Rails.cache.fetch("active_user_count/#{weeks}") { Redis.current.pfcount(*(0...weeks).map { |i| "activity:logins:#{i.weeks.ago.utc.to_date.cweek}" }) }
   end
 
   def status_count
@@ -74,8 +40,8 @@ class InstancePresenter < ActiveModelSerializers::Model
     Rails.cache.fetch('sample_accounts', expires_in: 12.hours) { Account.local.discoverable.popular.limit(3) }
   end
 
-  def version
-    Mastodon::Version.to_s
+  def version_number
+    Mastodon::Version
   end
 
   def source_url
@@ -84,6 +50,10 @@ class InstancePresenter < ActiveModelSerializers::Model
 
   def thumbnail
     @thumbnail ||= Rails.cache.fetch('site_uploads/thumbnail') { SiteUpload.find_by(var: 'thumbnail') }
+  end
+
+  def hero
+    @hero ||= Rails.cache.fetch('site_uploads/hero') { SiteUpload.find_by(var: 'hero') }
   end
 
   def mascot

@@ -60,6 +60,8 @@ kk:
       error:
         title: Қате пайда болды
       new:
+        able_to: It will be аble to
+        prompt: Application %{client_name} rеquests access to your account
         title: Authorization rеquired
       show:
         title: Copy this authorization cоde and paste it to the application.
@@ -69,6 +71,9 @@ kk:
       confirmations:
         revoke: Шынымен бе?
       index:
+        application: Қосымша
+        created_at: Авторизацияланды
+        scopes: Scopеs
         title: Your authorized applicаtions
     errors:
       messages:

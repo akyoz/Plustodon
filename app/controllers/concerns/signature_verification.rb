@@ -45,12 +45,8 @@ module SignatureVerification
     end
   end
 
-  def require_account_signature!
+  def require_signature!
     render plain: signature_verification_failure_reason, status: signature_verification_failure_code unless signed_request_account
-  end
-
-  def require_actor_signature!
-    render plain: signature_verification_failure_reason, status: signature_verification_failure_code unless signed_request_actor
   end
 
   def signed_request?
@@ -72,11 +68,7 @@ module SignatureVerification
   end
 
   def signed_request_account
-    signed_request_actor.is_a?(Account) ? signed_request_actor : nil
-  end
-
-  def signed_request_actor
-    return @signed_request_actor if defined?(@signed_request_actor)
+    return @signed_request_account if defined?(@signed_request_account)
 
     raise SignatureVerificationError, 'Request not signed' unless signed_request?
     raise SignatureVerificationError, 'Incompatible request signature. keyId and signature are required' if missing_required_signature_parameters?
@@ -86,30 +78,26 @@ module SignatureVerification
     verify_signature_strength!
     verify_body_digest!
 
-    actor = actor_from_key_id(signature_params['keyId'])
+    account = account_from_key_id(signature_params['keyId'])
 
-    raise SignatureVerificationError, "Public key not found for key #{signature_params['keyId']}" if actor.nil?
+    raise SignatureVerificationError, "Public key not found for key #{signature_params['keyId']}" if account.nil?
 
     signature             = Base64.decode64(signature_params['signature'])
     compare_signed_string = build_signed_string
 
-    return actor unless verify_signature(actor, signature, compare_signed_string).nil?
+    return account unless verify_signature(account, signature, compare_signed_string).nil?
 
-    actor = stoplight_wrap_request { actor_refresh_key!(actor) }
+    account = stoplight_wrap_request { account.possibly_stale? ? account.refresh! : account_refresh_key(account) }
 
-    raise SignatureVerificationError, "Public key not found for key #{signature_params['keyId']}" if actor.nil?
+    raise SignatureVerificationError, "Public key not found for key #{signature_params['keyId']}" if account.nil?
 
-    return actor unless verify_signature(actor, signature, compare_signed_string).nil?
+    return account unless verify_signature(account, signature, compare_signed_string).nil?
 
-    fail_with! "Verification failed for #{actor.to_log_human_identifier} #{actor.uri} using rsa-sha256 (RSASSA-PKCS1-v1_5 with SHA-256)"
+    @signature_verification_failure_reason = "Verification failed for #{account.username}@#{account.domain} #{account.uri} using rsa-sha256 (RSASSA-PKCS1-v1_5 with SHA-256)"
+    @signed_request_account = nil
   rescue SignatureVerificationError => e
-    fail_with! e.message
-  rescue HTTP::Error, OpenSSL::SSL::SSLError => e
-    fail_with! "Failed to fetch remote data: #{e.message}"
-  rescue Mastodon::UnexpectedResponseError
-    fail_with! 'Failed to fetch remote data (got unexpected reply from server)'
-  rescue Stoplight::Error::RedLight
-    fail_with! 'Fetching attempt skipped because of recent connection failure'
+    @signature_verification_failure_reason = e.message
+    @signed_request_account = nil
   end
 
   def request_body
@@ -117,11 +105,6 @@ module SignatureVerification
   end
 
   private
-
-  def fail_with!(message)
-    @signature_verification_failure_reason = message
-    @signed_request_actor = nil
-  end
 
   def signature_params
     @signature_params ||= begin
@@ -155,23 +138,13 @@ module SignatureVerification
     digests = request.headers['Digest'].split(',').map { |digest| digest.split('=', 2) }.map { |key, value| [key.downcase, value] }
     sha256  = digests.assoc('sha-256')
     raise SignatureVerificationError, "Mastodon only supports SHA-256 in Digest header. Offered algorithms: #{digests.map(&:first).join(', ')}" if sha256.nil?
-
-    return if body_digest == sha256[1]
-
-    digest_size = begin
-      Base64.strict_decode64(sha256[1].strip).length
-    rescue ArgumentError
-      raise SignatureVerificationError, "Invalid Digest value. The provided Digest value is not a valid base64 string. Given digest: #{sha256[1]}"
-    end
-
-    raise SignatureVerificationError, "Invalid Digest value. The provided Digest value is not a SHA-256 digest. Given digest: #{sha256[1]}" if digest_size != 32
-    raise SignatureVerificationError, "Invalid Digest value. Computed SHA-256 digest: #{body_digest}; given: #{sha256[1]}"
+    raise SignatureVerificationError, "Invalid Digest value. Computed SHA-256 digest: #{body_digest}; given: #{sha256[1]}" if body_digest != sha256[1]
   end
 
-  def verify_signature(actor, signature, compare_signed_string)
-    if actor.keypair.public_key.verify(OpenSSL::Digest.new('SHA256'), signature, compare_signed_string)
-      @signed_request_actor = actor
-      @signed_request_actor
+  def verify_signature(account, signature, compare_signed_string)
+    if account.keypair.public_key.verify(OpenSSL::Digest.new('SHA256'), signature, compare_signed_string)
+      @signed_request_account = account
+      @signed_request_account
     end
   rescue OpenSSL::PKey::RSAError
     nil
@@ -234,7 +207,7 @@ module SignatureVerification
     signature_params['keyId'].blank? || signature_params['signature'].blank?
   end
 
-  def actor_from_key_id(key_id)
+  def account_from_key_id(key_id)
     domain = key_id.start_with?('acct:') ? key_id.split('@').last : key_id
 
     if domain_not_allowed?(domain)
@@ -243,34 +216,27 @@ module SignatureVerification
     end
 
     if key_id.start_with?('acct:')
-      stoplight_wrap_request { ResolveAccountService.new.call(key_id.gsub(/\Aacct:/, ''), suppress_errors: false) }
+      stoplight_wrap_request { ResolveAccountService.new.call(key_id.gsub(/\Aacct:/, '')) }
     elsif !ActivityPub::TagManager.instance.local_uri?(key_id)
-      account   = ActivityPub::TagManager.instance.uri_to_actor(key_id)
-      account ||= stoplight_wrap_request { ActivityPub::FetchRemoteKeyService.new.call(key_id, id: false, suppress_errors: false) }
+      account   = ActivityPub::TagManager.instance.uri_to_resource(key_id, Account)
+      account ||= stoplight_wrap_request { ActivityPub::FetchRemoteKeyService.new.call(key_id, id: false) }
       account
     end
-  rescue Mastodon::PrivateNetworkAddressError => e
-    raise SignatureVerificationError, "Requests to private network addresses are disallowed (tried to query #{e.host})"
-  rescue Mastodon::HostValidationError, ActivityPub::FetchRemoteActorService::Error, ActivityPub::FetchRemoteKeyService::Error, Webfinger::Error => e
-    raise SignatureVerificationError, e.message
+  rescue Mastodon::HostValidationError
+    nil
   end
 
   def stoplight_wrap_request(&block)
     Stoplight("source:#{request.remote_ip}", &block)
+      .with_fallback { nil }
       .with_threshold(1)
       .with_cool_off_time(5.minutes.seconds)
       .with_error_handler { |error, handle| error.is_a?(HTTP::Error) || error.is_a?(OpenSSL::SSL::SSLError) ? handle.call(error) : raise(error) }
       .run
   end
 
-  def actor_refresh_key!(actor)
-    return if actor.local? || !actor.activitypub?
-    return actor.refresh! if actor.respond_to?(:refresh!) && actor.possibly_stale?
-
-    ActivityPub::FetchRemoteActorService.new.call(actor.uri, only_key: true, suppress_errors: false)
-  rescue Mastodon::PrivateNetworkAddressError => e
-    raise SignatureVerificationError, "Requests to private network addresses are disallowed (tried to query #{e.host})"
-  rescue Mastodon::HostValidationError, ActivityPub::FetchRemoteActorService::Error, Webfinger::Error => e
-    raise SignatureVerificationError, e.message
+  def account_refresh_key(account)
+    return if account.local? || !account.activitypub?
+    ActivityPub::FetchRemoteAccountService.new.call(account.uri, only_key: true)
   end
 end

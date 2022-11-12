@@ -2,24 +2,28 @@
 
 class InvitePolicy < ApplicationPolicy
   def index?
-    role.can?(:manage_invites)
+    staff?
   end
 
   def create?
-    role.can?(:invite_users)
+    min_required_role?
   end
 
   def deactivate_all?
-    role.can?(:manage_invites)
+    admin?
   end
 
   def destroy?
-    owner? || role.can?(:manage_invites)
+    owner? || (Setting.min_invite_role == 'admin' ? admin? : staff?)
   end
 
   private
 
   def owner?
     record.user_id == current_user&.id
+  end
+
+  def min_required_role?
+    current_user&.role?(Setting.min_invite_role)
   end
 end

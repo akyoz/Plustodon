@@ -3,7 +3,7 @@
 module Authorization
   extend ActiveSupport::Concern
 
-  include Pundit::Authorization
+  include Pundit
 
   def pundit_user
     current_account

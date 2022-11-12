@@ -137,8 +137,8 @@ RSpec.describe ResolveAccountService, type: :service do
       stub_request(:get, 'https://evil.example.com/.well-known/webfinger?resource=acct:foo@evil.example.com').to_return(body: Oj.dump(webfinger2), headers: { 'Content-Type': 'application/jrd+json' })
     end
 
-    it 'does not return a new remote account' do
-      expect(subject.call('Foo@redirected.example.com')).to be_nil
+    it 'returns new remote account' do
+      expect { subject.call('Foo@redirected.example.com') }.to raise_error Webfinger::RedirectError
     end
   end
 
@@ -220,8 +220,6 @@ RSpec.describe ResolveAccountService, type: :service do
           return_values << described_class.new.call('foo@ap.example.com')
         rescue ActiveRecord::RecordNotUnique
           fail_occurred = true
-        ensure
-          RedisConfiguration.pool.checkin if Thread.current[:redis]
         end
       end
     end

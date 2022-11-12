@@ -2,66 +2,66 @@
 
 class AccountPolicy < ApplicationPolicy
   def index?
-    role.can?(:manage_users)
+    staff?
   end
 
   def show?
-    role.can?(:manage_users)
+    staff?
   end
 
   def warn?
-    role.can?(:manage_users, :manage_reports) && role.overrides?(record.user_role)
+    staff? && !record.user&.staff?
   end
 
   def suspend?
-    role.can?(:manage_users, :manage_reports) && role.overrides?(record.user_role) && !record.instance_actor?
+    staff? && !record.user&.staff? && !record.instance_actor?
   end
 
   def destroy?
-    record.suspended_temporarily? && role.can?(:delete_user_data)
+    record.suspended_temporarily? && admin?
   end
 
   def unsuspend?
-    role.can?(:manage_users) && record.suspension_origin_local?
+    staff? && record.suspension_origin_local?
   end
 
   def sensitive?
-    role.can?(:manage_users, :manage_reports) && role.overrides?(record.user_role)
+    staff? && !record.user&.staff?
   end
 
   def unsensitive?
-    role.can?(:manage_users)
+    staff?
   end
 
   def silence?
-    role.can?(:manage_users, :manage_reports) && role.overrides?(record.user_role)
+    staff? && !record.user&.staff?
   end
 
   def unsilence?
-    role.can?(:manage_users)
+    staff?
   end
 
   def redownload?
-    role.can?(:manage_federation)
+    admin?
   end
 
   def remove_avatar?
-    role.can?(:manage_users, :manage_reports) && role.overrides?(record.user_role)
+    staff?
   end
 
   def remove_header?
-    role.can?(:manage_users, :manage_reports) && role.overrides?(record.user_role)
+    staff?
+  end
+
+  def subscribe?
+    admin?
+  end
+
+  def unsubscribe?
+    admin?
   end
 
   def memorialize?
-    role.can?(:delete_user_data) && role.overrides?(record.user_role) && !record.instance_actor?
-  end
-
-  def unblock_email?
-    role.can?(:manage_users)
-  end
-
-  def review?
-    role.can?(:manage_taxonomies)
+    admin? && !record.user&.admin? && !record.instance_actor?
   end
 end

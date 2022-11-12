@@ -19,18 +19,15 @@ module Mastodon
       ProgressBar.create(total: total, format: '%c/%u |%b%i| %e')
     end
 
-    def reset_connection_pools!
-      ActiveRecord::Base.establish_connection(ActiveRecord::Base.configurations[Rails.env].dup.tap { |config| config['pool'] = options[:concurrency] + 1 })
-      RedisConfiguration.establish_pool(options[:concurrency])
-    end
-
     def parallelize_with_progress(scope)
       if options[:concurrency] < 1
         say('Cannot run with this concurrency setting, must be at least 1', :red)
         exit(1)
       end
 
-      reset_connection_pools!
+      db_config = ActiveRecord::Base.configurations[Rails.env].dup
+      db_config['pool'] = options[:concurrency] + 1
+      ActiveRecord::Base.establish_connection(db_config)
 
       progress  = create_progress_bar(scope.count)
       pool      = Concurrent::FixedThreadPool.new(options[:concurrency])
@@ -55,9 +52,6 @@ module Mastodon
 
               result = ActiveRecord::Base.connection_pool.with_connection do
                 yield(item)
-              ensure
-                RedisConfiguration.pool.checkin if Thread.current[:redis]
-                Thread.current[:redis] = nil
               end
 
               aggregate.increment(result) if result.is_a?(Integer)

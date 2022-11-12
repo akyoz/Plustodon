@@ -4,10 +4,8 @@ import { start } from '../mastodon/common';
 
 start();
 
-loadPolyfills().then(async () => {
-  const { default: main } = await import('mastodon/main');
-
-  return main();
+loadPolyfills().then(() => {
+  require('../mastodon/main').default();
 }).catch(e => {
   console.error(e);
 });

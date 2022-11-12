@@ -128,16 +128,36 @@ RSpec.describe FeedManager do
         expect(FeedManager.instance.filter?(:home, reblog, alice)).to be true
       end
 
-      it 'returns true for German post when follow is set to English only' do
-        alice.follow!(bob, languages: %w(en))
-        status = Fabricate(:status, text: 'Hallo Welt', account: bob, language: 'de')
-        expect(FeedManager.instance.filter?(:home, status, alice)).to be true
-      end
+      context 'for irreversibly muted phrases' do
+        it 'considers word boundaries when matching' do
+          alice.custom_filters.create!(phrase: 'bob', context: %w(home), irreversible: true)
+          alice.follow!(jeff)
+          status = Fabricate(:status, text: 'bobcats', account: jeff)
+          expect(FeedManager.instance.filter?(:home, status, alice)).to be_falsy
+        end
 
-      it 'returns false for German post when follow is set to German' do
-        alice.follow!(bob, languages: %w(de))
-        status = Fabricate(:status, text: 'Hallo Welt', account: bob, language: 'de')
-        expect(FeedManager.instance.filter?(:home, status, alice)).to be false
+        it 'returns true if phrase is contained' do
+          alice.custom_filters.create!(phrase: 'farts', context: %w(home public), irreversible: true)
+          alice.custom_filters.create!(phrase: 'pop tarts', context: %w(home), irreversible: true)
+          alice.follow!(jeff)
+          status = Fabricate(:status, text: 'i sure like POP TARts', account: jeff)
+          expect(FeedManager.instance.filter?(:home, status, alice)).to be true
+        end
+
+        it 'matches substrings if whole_word is false' do
+          alice.custom_filters.create!(phrase: 'take', context: %w(home), whole_word: false, irreversible: true)
+          alice.follow!(jeff)
+          status = Fabricate(:status, text: 'shiitake', account: jeff)
+          expect(FeedManager.instance.filter?(:home, status, alice)).to be true
+        end
+
+        it 'returns true if phrase is contained in a poll option' do
+          alice.custom_filters.create!(phrase: 'farts', context: %w(home public), irreversible: true)
+          alice.custom_filters.create!(phrase: 'pop tarts', context: %w(home), irreversible: true)
+          alice.follow!(jeff)
+          status = Fabricate(:status, text: 'what do you prefer', poll: Fabricate(:poll, options: %w(farts POP TARts)), account: jeff)
+          expect(FeedManager.instance.filter?(:home, status, alice)).to be true
+        end
       end
     end
 
@@ -175,11 +195,11 @@ RSpec.describe FeedManager do
       account = Fabricate(:account)
       status = Fabricate(:status)
       members = FeedManager::MAX_ITEMS.times.map { |count| [count, count] }
-      redis.zadd("feed:home:#{account.id}", members)
+      Redis.current.zadd("feed:home:#{account.id}", members)
 
       FeedManager.instance.push_to_home(account, status)
 
-      expect(redis.zcard("feed:home:#{account.id}")).to eq FeedManager::MAX_ITEMS
+      expect(Redis.current.zcard("feed:home:#{account.id}")).to eq FeedManager::MAX_ITEMS
     end
 
     context 'reblogs' do
@@ -404,7 +424,7 @@ RSpec.describe FeedManager do
 
       FeedManager.instance.merge_into_home(account, reblog.account)
 
-      expect(redis.zscore("feed:home:0", reblog.id)).to eq nil
+      expect(Redis.current.zscore("feed:home:0", reblog.id)).to eq nil
     end
   end
 
@@ -420,13 +440,13 @@ RSpec.describe FeedManager do
       FeedManager.instance.push_to_home(receiver, status)
 
       # The reblogging status should show up under normal conditions.
-      expect(redis.zrange("feed:home:#{receiver.id}", 0, -1)).to include(status.id.to_s)
+      expect(Redis.current.zrange("feed:home:#{receiver.id}", 0, -1)).to include(status.id.to_s)
 
       FeedManager.instance.unpush_from_home(receiver, status)
 
       # Restore original status
-      expect(redis.zrange("feed:home:#{receiver.id}", 0, -1)).to_not include(status.id.to_s)
-      expect(redis.zrange("feed:home:#{receiver.id}", 0, -1)).to include(reblogged.id.to_s)
+      expect(Redis.current.zrange("feed:home:#{receiver.id}", 0, -1)).to_not include(status.id.to_s)
+      expect(Redis.current.zrange("feed:home:#{receiver.id}", 0, -1)).to include(reblogged.id.to_s)
     end
 
     it 'removes a reblogged status if it was only reblogged once' do
@@ -436,11 +456,11 @@ RSpec.describe FeedManager do
       FeedManager.instance.push_to_home(receiver, status)
 
       # The reblogging status should show up under normal conditions.
-      expect(redis.zrange("feed:home:#{receiver.id}", 0, -1)).to eq [status.id.to_s]
+      expect(Redis.current.zrange("feed:home:#{receiver.id}", 0, -1)).to eq [status.id.to_s]
 
       FeedManager.instance.unpush_from_home(receiver, status)
 
-      expect(redis.zrange("feed:home:#{receiver.id}", 0, -1)).to be_empty
+      expect(Redis.current.zrange("feed:home:#{receiver.id}", 0, -1)).to be_empty
     end
 
     it 'leaves a multiply-reblogged status if another reblog was in feed' do
@@ -452,13 +472,13 @@ RSpec.describe FeedManager do
       end
 
       # The reblogging status should show up under normal conditions.
-      expect(redis.zrange("feed:home:#{receiver.id}", 0, -1)).to eq [reblogs.first.id.to_s]
+      expect(Redis.current.zrange("feed:home:#{receiver.id}", 0, -1)).to eq [reblogs.first.id.to_s]
 
       reblogs[0...-1].each do |reblog|
         FeedManager.instance.unpush_from_home(receiver, reblog)
       end
 
-      expect(redis.zrange("feed:home:#{receiver.id}", 0, -1)).to eq [reblogs.last.id.to_s]
+      expect(Redis.current.zrange("feed:home:#{receiver.id}", 0, -1)).to eq [reblogs.last.id.to_s]
     end
 
     it 'sends push updates' do
@@ -466,11 +486,11 @@ RSpec.describe FeedManager do
 
       FeedManager.instance.push_to_home(receiver, status)
 
-      allow(redis).to receive_messages(publish: nil)
+      allow(Redis.current).to receive_messages(publish: nil)
       FeedManager.instance.unpush_from_home(receiver, status)
 
       deletion = Oj.dump(event: :delete, payload: status.id.to_s)
-      expect(redis).to have_received(:publish).with("timeline:#{receiver.id}", deletion)
+      expect(Redis.current).to have_received(:publish).with("timeline:#{receiver.id}", deletion)
     end
   end
 
@@ -488,14 +508,14 @@ RSpec.describe FeedManager do
 
     before do
       [status_1, status_3, status_5, status_6, status_7].each do |status|
-        redis.zadd("feed:home:#{account.id}", status.id, status.id)
+        Redis.current.zadd("feed:home:#{account.id}", status.id, status.id)
       end
     end
 
     it 'correctly cleans the home timeline' do
       FeedManager.instance.clear_from_home(account, target_account)
 
-      expect(redis.zrange("feed:home:#{account.id}", 0, -1)).to eq [status_1.id.to_s, status_7.id.to_s]
+      expect(Redis.current.zrange("feed:home:#{account.id}", 0, -1)).to eq [status_1.id.to_s, status_7.id.to_s]
     end
   end
 end

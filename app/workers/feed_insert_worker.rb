@@ -3,13 +3,12 @@
 class FeedInsertWorker
   include Sidekiq::Worker
 
-  def perform(status_id, id, type = 'home', options = {})
-    @type      = type.to_sym
-    @status    = Status.find(status_id)
-    @options   = options.symbolize_keys
+  def perform(status_id, id, type = :home)
+    @type     = type.to_sym
+    @status   = Status.find(status_id)
 
     case @type
-    when :home, :tags
+    when :home
       @follower = Account.find(id)
     when :list
       @list     = List.find(id)
@@ -24,20 +23,16 @@ class FeedInsertWorker
   private
 
   def check_and_insert
-    if feed_filtered?
-      perform_unpush if update?
-    else
-      perform_push
-      perform_notify if notify?
-    end
+    return if feed_filtered?
+
+    perform_push
+    perform_notify if notify?
   end
 
   def feed_filtered?
     case @type
     when :home
       FeedManager.instance.filter?(:home, @status, @follower)
-    when :tags
-      FeedManager.instance.filter?(:tags, @status, @follower)
     when :list
       FeedManager.instance.filter?(:list, @status, @list)
     end
@@ -51,27 +46,14 @@ class FeedInsertWorker
 
   def perform_push
     case @type
-    when :home, :tags
-      FeedManager.instance.push_to_home(@follower, @status, update: update?)
+    when :home
+      FeedManager.instance.push_to_home(@follower, @status)
     when :list
-      FeedManager.instance.push_to_list(@list, @status, update: update?)
-    end
-  end
-
-  def perform_unpush
-    case @type
-    when :home, :tags
-      FeedManager.instance.unpush_from_home(@follower, @status, update: true)
-    when :list
-      FeedManager.instance.unpush_from_list(@list, @status, update: true)
+      FeedManager.instance.push_to_list(@list, @status)
     end
   end
 
   def perform_notify
-    LocalNotificationWorker.perform_async(@follower.id, @status.id, 'Status', 'status')
-  end
-
-  def update?
-    @options[:update]
+    NotifyService.new.call(@follower, :status, @status)
   end
 end

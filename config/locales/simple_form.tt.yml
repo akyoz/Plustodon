@@ -17,8 +17,6 @@ tt:
         password: Парол
         setting_display_media_default: Töpcay
         username: Кулланучы исеме
-      featured_tag:
-        name: Хэштег
       invite:
         comment: Аңлатма
       ip_block:

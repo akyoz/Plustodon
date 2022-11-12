@@ -14,6 +14,8 @@ export const SEARCH_EXPAND_REQUEST = 'SEARCH_EXPAND_REQUEST';
 export const SEARCH_EXPAND_SUCCESS = 'SEARCH_EXPAND_SUCCESS';
 export const SEARCH_EXPAND_FAIL    = 'SEARCH_EXPAND_FAIL';
 
+export const RESULTS_LIMIT      = 20;
+
 export function changeSearch(value) {
   return {
     type: SEARCH_CHANGE,
@@ -29,8 +31,7 @@ export function clearSearch() {
 
 export function submitSearch() {
   return (dispatch, getState) => {
-    const value    = getState().getIn(['search', 'value']);
-    const signedIn = !!getState().getIn(['meta', 'me']);
+    const value = getState().getIn(['search', 'value']);
 
     if (value.length === 0) {
       dispatch(fetchSearchSuccess({ accounts: [], statuses: [], hashtags: [] }, ''));
@@ -42,8 +43,8 @@ export function submitSearch() {
     api(getState).get('/api/v2/search', {
       params: {
         q: value,
-        resolve: signedIn,
-        limit: 5,
+        resolve: true,
+        limit: RESULTS_LIMIT,
       },
     }).then(response => {
       if (response.data.accounts) {

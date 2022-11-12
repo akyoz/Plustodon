@@ -1,12 +1,10 @@
 # frozen_string_literal: true
 
-require_relative '../../lib/mastodon/sidekiq_middleware'
-
 Sidekiq.configure_server do |config|
   config.redis = REDIS_SIDEKIQ_PARAMS
 
   config.server_middleware do |chain|
-    chain.add Mastodon::SidekiqMiddleware
+    chain.add SidekiqErrorHandler
   end
 
   config.server_middleware do |chain|
@@ -35,5 +33,4 @@ SidekiqUniqueJobs.configure do |config|
   config.reaper_count    = 1000
   config.reaper_interval = 600
   config.reaper_timeout  = 150
-  config.lock_ttl        = 50.days.to_i
 end

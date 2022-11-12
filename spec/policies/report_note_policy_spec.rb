@@ -5,8 +5,8 @@ require 'pundit/rspec'
 
 RSpec.describe ReportNotePolicy do
   let(:subject) { described_class }
-  let(:admin)   { Fabricate(:user, role: UserRole.find_by(name: 'Admin')).account }
-  let(:john)    { Fabricate(:account) }
+  let(:admin)   { Fabricate(:user, admin: true).account }
+  let(:john)    { Fabricate(:user).account }
 
   permissions :create? do
     context 'staff?' do
@@ -25,8 +25,7 @@ RSpec.describe ReportNotePolicy do
   permissions :destroy? do
     context 'admin?' do
       it 'permit' do
-        report_note = Fabricate(:report_note, account: john)
-        expect(subject).to permit(admin, report_note)
+        expect(subject).to permit(admin, ReportNote)
       end
     end
 

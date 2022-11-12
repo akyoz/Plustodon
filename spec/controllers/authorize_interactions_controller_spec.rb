@@ -16,6 +16,7 @@ describe AuthorizeInteractionsController do
 
     describe 'when signed in' do
       let(:user) { Fabricate(:user) }
+      let(:account) { Fabricate(:account, user: user) }
 
       before do
         sign_in(user)
@@ -39,7 +40,7 @@ describe AuthorizeInteractionsController do
       end
 
       it 'sets resource from url' do
-        account = Fabricate(:account)
+        account = Account.new
         service = double
         allow(ResolveURLService).to receive(:new).and_return(service)
         allow(service).to receive(:call).with('http://example.com').and_return(account)
@@ -51,7 +52,7 @@ describe AuthorizeInteractionsController do
       end
 
       it 'sets resource from acct uri' do
-        account = Fabricate(:account)
+        account = Account.new
         service = double
         allow(ResolveAccountService).to receive(:new).and_return(service)
         allow(service).to receive(:call).with('found@hostname').and_return(account)
@@ -75,7 +76,7 @@ describe AuthorizeInteractionsController do
 
     describe 'when signed in' do
       let!(:user) { Fabricate(:user) }
-      let(:account) { user.account }
+      let!(:account) { user.account }
 
       before do
         sign_in(user)

@@ -28,7 +28,7 @@ class VerifyLinkService < BaseService
 
     links = Nokogiri::HTML(@body).xpath('//a[contains(concat(" ", normalize-space(@rel), " "), " me ")]|//link[contains(concat(" ", normalize-space(@rel), " "), " me ")]')
 
-    if links.any? { |link| link['href'].downcase == @link_back.downcase }
+    if links.any? { |link| link['href'] == @link_back }
       true
     elsif links.empty?
       false

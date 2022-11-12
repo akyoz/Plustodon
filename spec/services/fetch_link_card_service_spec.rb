@@ -1,7 +1,7 @@
 require 'rails_helper'
 
 RSpec.describe FetchLinkCardService, type: :service do
-  subject { described_class.new }
+  subject { FetchLinkCardService.new }
 
   before do
     stub_request(:get, 'http://example.xn--fiqs8s/').to_return(request_fixture('idn.txt'))

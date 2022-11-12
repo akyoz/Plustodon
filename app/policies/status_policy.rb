@@ -7,6 +7,10 @@ class StatusPolicy < ApplicationPolicy
     @preloaded_relations = preloaded_relations
   end
 
+  def index?
+    staff?
+  end
+
   def show?
     return false if author.suspended?
 
@@ -28,13 +32,13 @@ class StatusPolicy < ApplicationPolicy
   end
 
   def destroy?
-    owned?
+    staff? || owned?
   end
 
   alias unreblog? destroy?
 
   def update?
-    owned?
+    staff?
   end
 
   private

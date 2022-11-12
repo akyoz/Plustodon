@@ -2,14 +2,14 @@
 
 class EmailDomainBlockPolicy < ApplicationPolicy
   def index?
-    role.can?(:manage_blocks)
+    admin?
   end
 
   def create?
-    role.can?(:manage_blocks)
+    admin?
   end
 
   def destroy?
-    role.can?(:manage_blocks)
+    admin?
   end
 end

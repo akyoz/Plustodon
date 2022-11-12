@@ -6,12 +6,10 @@ nn:
         expires_at: Frist
         options: Val
       user:
-        agreement: Serviceavtale
-        email: Epostadresse
-        locale: Lokale
+        email: E-mail address
         password: Passord
       user/account:
-        username: Brukarnamn
+        username: Brukernavn
       user/invite_request:
         text: Grunn
     errors:
@@ -19,37 +17,9 @@ nn:
         account:
           attributes:
             username:
-              invalid: kan berre innehalda bokstavar, tal og understrekar
+              invalid: bare bokstaver, tall og understreker
               reserved: er reservert
-        admin/webhook:
-          attributes:
-            url:
-              invalid: er ikkje ein gyldig URL
-        doorkeeper/application:
-          attributes:
-            website:
-              invalid: er ikkje ein gyldig URL
-        import:
-          attributes:
-            data:
-              malformed: er feilutforma
         status:
           attributes:
             reblog:
-              taken: av innlegg eksisterer allereie
-        user:
-          attributes:
-            email:
-              blocked: bruker ein forboden epostleverandør
-              unreachable: ser ikkje ut til å eksistere
-            role_id:
-              elevated: kan ikkje vere høgare enn di noverande rolle
-        user_role:
-          attributes:
-            permissions_as_keys:
-              dangerous: inkluder tillatingar som ikkje er trygge for basisrolla
-              elevated: kan ikkje inkludere rettigheiter di noverande rolle ikkje innehar
-              own_role: kan ikkje endrast med di noverande rolle
-            position:
-              elevated: kan ikkje vere høgare enn di noverande rolle
-              own_role: kan ikkje endrast med di noverande rolle
+              taken: av status eksisterer allerede

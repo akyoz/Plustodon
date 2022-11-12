@@ -40,12 +40,8 @@
 
 # Ignore postgres + redis + elasticsearch volume optionally created by docker-compose
 /postgres
-/postgres14
 /redis
 /elasticsearch
-
-# ignore Helm charts
-/chart/*.tgz
 
 # ignore Helm dependency charts
 /chart/charts/*.tgz

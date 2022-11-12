@@ -12,7 +12,6 @@ const url = require('url');
 const uuid = require('uuid');
 const fs = require('fs');
 const WebSocket = require('ws');
-const { JSDOM } = require('jsdom');
 
 const env = process.env.NODE_ENV || 'development';
 const alwaysRequireAuth = process.env.LIMITED_FEDERATION_MODE === 'true' || process.env.WHITELIST_MODE === 'true' || process.env.AUTHORIZED_FETCH === 'true';
@@ -64,47 +63,33 @@ const dbUrlToConfig = (dbUrl) => {
  * @param {Object.<string, any>} defaultConfig
  * @param {string} redisUrl
  */
-const redisUrlToClient = async (defaultConfig, redisUrl) => {
+const redisUrlToClient = (defaultConfig, redisUrl) => {
   const config = defaultConfig;
 
-  let client;
-
   if (!redisUrl) {
-    client = redis.createClient(config);
-  } else if (redisUrl.startsWith('unix://')) {
-    client = redis.createClient(Object.assign(config, {
-      socket: {
-        path: redisUrl.slice(7),
-      },
-    }));
-  } else {
-    client = redis.createClient(Object.assign(config, {
-      url: redisUrl,
-    }));
+    return redis.createClient(config);
   }
 
-  client.on('error', (err) => log.error('Redis Client Error!', err));
-  await client.connect();
+  if (redisUrl.startsWith('unix://')) {
+    return redis.createClient(redisUrl.slice(7), config);
+  }
 
-  return client;
+  return redis.createClient(Object.assign(config, {
+    url: redisUrl,
+  }));
 };
 
 const numWorkers = +process.env.STREAMING_CLUSTER_NUM || (env === 'development' ? 1 : Math.max(os.cpus().length - 1, 1));
 
 /**
  * @param {string} json
- * @param {any} req
  * @return {Object.<string, any>|null}
  */
-const parseJSON = (json, req) => {
+const parseJSON = (json) => {
   try {
     return JSON.parse(json);
   } catch (err) {
-    if (req.accountId) {
-      log.warn(req.requestId, `Error parsing message from user ${req.accountId}: ${err}`);
-    } else {
-      log.silly(req.requestId, `Error parsing message from ${req.remoteAddress}: ${err}`);
-    }
+    log.error(err);
     return null;
   }
 };
@@ -117,7 +102,7 @@ const startMaster = () => {
   log.warn(`Starting streaming API server master with ${numWorkers} workers`);
 };
 
-const startWorker = async (workerId) => {
+const startWorker = (workerId) => {
   log.warn(`Starting worker ${workerId}`);
 
   const pgConfigs = {
@@ -142,23 +127,21 @@ const startWorker = async (workerId) => {
 
   if (!!process.env.DB_SSLMODE && process.env.DB_SSLMODE !== 'disable') {
     pgConfigs.development.ssl = true;
-    pgConfigs.production.ssl = true;
+    pgConfigs.production.ssl  = true;
   }
 
   const app = express();
 
-  app.set('trust proxy', process.env.TRUSTED_PROXY_IP ? process.env.TRUSTED_PROXY_IP.split(/(?:\s*,\s*|\s+)/) : 'loopback,uniquelocal');
+  app.set('trusted proxy', process.env.TRUSTED_PROXY_IP || 'loopback,uniquelocal');
 
   const pgPool = new pg.Pool(Object.assign(pgConfigs[env], dbUrlToConfig(process.env.DATABASE_URL)));
   const server = http.createServer(app);
   const redisNamespace = process.env.REDIS_NAMESPACE || null;
 
   const redisParams = {
-    socket: {
-      host: process.env.REDIS_HOST || '127.0.0.1',
-      port: process.env.REDIS_PORT || 6379,
-    },
-    database: process.env.REDIS_DB || 0,
+    host:     process.env.REDIS_HOST     || '127.0.0.1',
+    port:     process.env.REDIS_PORT     || 6379,
+    db:       process.env.REDIS_DB       || 0,
     password: process.env.REDIS_PASSWORD || undefined,
   };
 
@@ -168,13 +151,25 @@ const startWorker = async (workerId) => {
 
   const redisPrefix = redisNamespace ? `${redisNamespace}:` : '';
 
+  const redisSubscribeClient = redisUrlToClient(redisParams, process.env.REDIS_URL);
+  const redisClient = redisUrlToClient(redisParams, process.env.REDIS_URL);
+
   /**
    * @type {Object.<string, Array.<function(string): void>>}
    */
   const subs = {};
 
-  const redisSubscribeClient = await redisUrlToClient(redisParams, process.env.REDIS_URL);
-  const redisClient = await redisUrlToClient(redisParams, process.env.REDIS_URL);
+  redisSubscribeClient.on('message', (channel, message) => {
+    const callbacks = subs[channel];
+
+    log.silly(`New message on channel ${channel}`);
+
+    if (!callbacks) {
+      return;
+    }
+
+    callbacks.forEach(callback => callback(message));
+  });
 
   /**
    * @param {string[]} channels
@@ -197,33 +192,16 @@ const startWorker = async (workerId) => {
   };
 
   /**
-   * @param {string} message
-   * @param {string} channel
-   */
-  const onRedisMessage = (message, channel) => {
-    const callbacks = subs[channel];
-
-    log.silly(`New message on channel ${channel}`);
-
-    if (!callbacks) {
-      return;
-    }
-
-    callbacks.forEach(callback => callback(message));
-  };
-
-  /**
    * @param {string} channel
    * @param {function(string): void} callback
    */
   const subscribe = (channel, callback) => {
     log.silly(`Adding listener for ${channel}`);
-
     subs[channel] = subs[channel] || [];
 
     if (subs[channel].length === 0) {
       log.verbose(`Subscribe ${channel}`);
-      redisSubscribeClient.subscribe(channel, onRedisMessage);
+      redisSubscribeClient.subscribe(channel);
     }
 
     subs[channel].push(callback);
@@ -231,6 +209,7 @@ const startWorker = async (workerId) => {
 
   /**
    * @param {string} channel
+   * @param {function(string): void} callback
    */
   const unsubscribe = (channel, callback) => {
     log.silly(`Removing listener for ${channel}`);
@@ -304,14 +283,6 @@ const startWorker = async (workerId) => {
   };
 
   /**
-   * @param {any} req
-   * @param {string[]} necessaryScopes
-   * @return {boolean}
-   */
-  const isInScope = (req, necessaryScopes) =>
-    req.scopes.some(scope => necessaryScopes.includes(scope));
-
-  /**
    * @param {string} token
    * @param {any} req
    * @return {Promise.<void>}
@@ -343,6 +314,7 @@ const startWorker = async (workerId) => {
         req.scopes = result.rows[0].scopes.split(' ');
         req.accountId = result.rows[0].account_id;
         req.chosenLanguages = result.rows[0].chosen_languages;
+        req.allowNotifications = req.scopes.some(scope => ['read', 'read:notifications'].includes(scope));
         req.deviceId = result.rows[0].device_id;
 
         resolve();
@@ -386,7 +358,7 @@ const startWorker = async (workerId) => {
     const { path, query } = req;
     const onlyMedia = isTruthy(query.only_media);
 
-    switch (path) {
+    switch(path) {
     case '/api/v1/streaming/user':
       return 'user';
     case '/api/v1/streaming/user/notification':
@@ -451,7 +423,7 @@ const startWorker = async (workerId) => {
       requiredScopes.push('read:statuses');
     }
 
-    if (req.scopes && requiredScopes.some(requiredScope => req.scopes.includes(requiredScope))) {
+    if (requiredScopes.some(requiredScope => req.scopes.includes(requiredScope))) {
       resolve();
       return;
     }
@@ -493,7 +465,7 @@ const startWorker = async (workerId) => {
    */
   const createSystemMessageListener = (req, eventHandlers) => {
     return message => {
-      const json = parseJSON(message, req);
+      const json = parseJSON(message);
 
       if (!json) return;
 
@@ -504,9 +476,6 @@ const startWorker = async (workerId) => {
       if (event === 'kill') {
         log.verbose(req.requestId, `Closing connection for ${req.accountId} due to expired access token`);
         eventHandlers.onKill();
-      } else if (event === 'filters_changed') {
-        log.verbose(req.requestId, `Invalidating filters cache for ${req.accountId}`);
-        req.cachedFilters = null;
       }
     };
   };
@@ -516,23 +485,20 @@ const startWorker = async (workerId) => {
    * @param {any} res
    */
   const subscribeHttpToSystemChannel = (req, res) => {
-    const accessTokenChannelId = `timeline:access_token:${req.accessTokenId}`;
-    const systemChannelId = `timeline:system:${req.accountId}`;
+    const systemChannelId = `timeline:access_token:${req.accessTokenId}`;
 
     const listener = createSystemMessageListener(req, {
 
-      onKill() {
+      onKill () {
         res.end();
       },
 
     });
 
     res.on('close', () => {
-      unsubscribe(`${redisPrefix}${accessTokenChannelId}`, listener);
       unsubscribe(`${redisPrefix}${systemChannelId}`, listener);
     });
 
-    subscribe(`${redisPrefix}${accessTokenChannelId}`, listener);
     subscribe(`${redisPrefix}${systemChannelId}`, listener);
   };
 
@@ -575,7 +541,7 @@ const startWorker = async (workerId) => {
   };
 
   /**
-   * @param {array} arr
+   * @param {array}
    * @param {number=} shift
    * @return {string}
    */
@@ -614,28 +580,38 @@ const startWorker = async (workerId) => {
    * @param {function(string, string): void} output
    * @param {function(string[], function(string): void): void} attachCloseHandler
    * @param {boolean=} needsFiltering
+   * @param {boolean=} notificationOnly
    * @return {function(string): void}
    */
-  const streamFrom = (ids, req, output, attachCloseHandler, needsFiltering = false) => {
-    const accountId = req.accountId || req.remoteAddress;
+  const streamFrom = (ids, req, output, attachCloseHandler, needsFiltering = false, notificationOnly = false) => {
+    const accountId  = req.accountId || req.remoteAddress;
+    const streamType = notificationOnly ? ' (notification)' : '';
 
-    log.verbose(req.requestId, `Starting stream from ${ids.join(', ')} for ${accountId}`);
+    log.verbose(req.requestId, `Starting stream from ${ids.join(', ')} for ${accountId}${streamType}`);
 
     const listener = message => {
-      const json = parseJSON(message, req);
+      const json = parseJSON(message);
 
       if (!json) return;
 
       const { event, payload, queued_at } = json;
 
       const transmit = () => {
-        const now = new Date().getTime();
-        const delta = now - queued_at;
+        const now            = new Date().getTime();
+        const delta          = now - queued_at;
         const encodedPayload = typeof payload === 'object' ? JSON.stringify(payload) : payload;
 
         log.silly(req.requestId, `Transmitting for ${accountId}: ${event} ${encodedPayload} Delay: ${delta}ms`);
         output(event, encodedPayload);
       };
+
+      if (notificationOnly && event !== 'notification') {
+        return;
+      }
+
+      if (event === 'notification' && !req.allowNotifications) {
+        return;
+      }
 
       // Only messages that may require filtering are statuses, since notifications
       // are already personalized and deletes do not matter
@@ -644,9 +620,9 @@ const startWorker = async (workerId) => {
         return;
       }
 
-      const unpackedPayload = payload;
+      const unpackedPayload  = payload;
       const targetAccountIds = [unpackedPayload.account.id].concat(unpackedPayload.mentions.map(item => item.id));
-      const accountDomain = unpackedPayload.account.acct.split('@')[1];
+      const accountDomain    = unpackedPayload.account.acct.split('@')[1];
 
       if (Array.isArray(req.chosenLanguages) && unpackedPayload.language !== null && req.chosenLanguages.indexOf(unpackedPayload.language) === -1) {
         log.silly(req.requestId, `Message ${unpackedPayload.id} filtered by language (${unpackedPayload.language})`);
@@ -666,99 +642,24 @@ const startWorker = async (workerId) => {
         }
 
         const queries = [
-          client.query(`SELECT 1
-                        FROM blocks
-                        WHERE (account_id = $1 AND target_account_id IN (${placeholders(targetAccountIds, 2)}))
-                           OR (account_id = $2 AND target_account_id = $1)
-                        UNION
-                        SELECT 1
-                        FROM mutes
-                        WHERE account_id = $1
-                          AND target_account_id IN (${placeholders(targetAccountIds, 2)})`, [req.accountId, unpackedPayload.account.id].concat(targetAccountIds)),
+          client.query(`SELECT 1 FROM blocks WHERE (account_id = $1 AND target_account_id IN (${placeholders(targetAccountIds, 2)})) OR (account_id = $2 AND target_account_id = $1) UNION SELECT 1 FROM mutes WHERE account_id = $1 AND target_account_id IN (${placeholders(targetAccountIds, 2)})`, [req.accountId, unpackedPayload.account.id].concat(targetAccountIds)),
         ];
 
         if (accountDomain) {
           queries.push(client.query('SELECT 1 FROM account_domain_blocks WHERE account_id = $1 AND domain = $2', [req.accountId, accountDomain]));
         }
 
-        if (!unpackedPayload.filter_results && !req.cachedFilters) {
-          queries.push(client.query('SELECT filter.id AS id, filter.phrase AS title, filter.context AS context, filter.expires_at AS expires_at, filter.action AS filter_action, keyword.keyword AS keyword, keyword.whole_word AS whole_word FROM custom_filter_keywords keyword JOIN custom_filters filter ON keyword.custom_filter_id = filter.id WHERE filter.account_id = $1 AND filter.expires_at IS NULL OR filter.expires_at > NOW()', [req.accountId]));
-        }
-
         Promise.all(queries).then(values => {
           done();
 
-          if (values[0].rows.length > 0 || (accountDomain && values[1].rows.length > 0)) {
+          if (values[0].rows.length > 0 || (values.length > 1 && values[1].rows.length > 0)) {
             return;
-          }
-
-          if (!unpackedPayload.filter_results && !req.cachedFilters) {
-            const filterRows = values[accountDomain ? 2 : 1].rows;
-
-            req.cachedFilters = filterRows.reduce((cache, row) => {
-              if (cache[row.id]) {
-                cache[row.id].keywords.push([row.keyword, row.whole_word]);
-              } else {
-                cache[row.id] = {
-                  keywords: [[row.keyword, row.whole_word]],
-                  expires_at: row.expires_at,
-                  repr: {
-                    id: row.id,
-                    title: row.title,
-                    context: row.context,
-                    expires_at: row.expires_at,
-                    filter_action: row.filter_action,
-                  },
-                };
-              }
-
-              return cache;
-            }, {});
-
-            Object.keys(req.cachedFilters).forEach((key) => {
-              req.cachedFilters[key].regexp = new RegExp(req.cachedFilters[key].keywords.map(([keyword, whole_word]) => {
-                let expr = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');;
-
-                if (whole_word) {
-                  if (/^[\w]/.test(expr)) {
-                    expr = `\\b${expr}`;
-                  }
-
-                  if (/[\w]$/.test(expr)) {
-                    expr = `${expr}\\b`;
-                  }
-                }
-
-                return expr;
-              }).join('|'), 'i');
-            });
-          }
-
-          // Check filters
-          if (req.cachedFilters && !unpackedPayload.filter_results) {
-            const status = unpackedPayload;
-            const searchContent = ([status.spoiler_text || '', status.content].concat((status.poll && status.poll.options) ? status.poll.options.map(option => option.title) : [])).concat(status.media_attachments.map(att => att.description)).join('\n\n').replace(/<br\s*\/?>/g, '\n').replace(/<\/p><p>/g, '\n\n');
-            const searchIndex = JSDOM.fragment(searchContent).textContent;
-
-            const now = new Date();
-            payload.filter_results = [];
-            Object.values(req.cachedFilters).forEach((cachedFilter) => {
-              if ((cachedFilter.expires_at === null || cachedFilter.expires_at > now)) {
-                const keyword_matches = searchIndex.match(cachedFilter.regexp);
-                if (keyword_matches) {
-                  payload.filter_results.push({
-                    filter: cachedFilter.repr,
-                    keyword_matches,
-                  });
-                }
-              }
-            });
           }
 
           transmit();
         }).catch(err => {
-          log.error(err);
           done();
+          log.error(err);
         });
       });
     };
@@ -804,12 +705,12 @@ const startWorker = async (workerId) => {
   /**
    * @param {any} req
    * @param {function(): void} [closeHandler]
-   * @return {function(string[]): void}
+   * @return {function(string[], function(string): void)}
    */
-  const streamHttpEnd = (req, closeHandler = undefined) => (ids) => {
+  const streamHttpEnd = (req, closeHandler = undefined) => (ids, listener) => {
     req.on('close', () => {
       ids.forEach(id => {
-        unsubscribe(id);
+        unsubscribe(id, listener);
       });
 
       if (closeHandler) {
@@ -856,9 +757,9 @@ const startWorker = async (workerId) => {
   app.get('/api/v1/streaming/*', (req, res) => {
     channelNameToIds(req, channelNameFromPath(req), req.query).then(({ channelIds, options }) => {
       const onSend = streamToHttp(req, res);
-      const onEnd = streamHttpEnd(req, subscriptionHeartbeat(channelIds));
+      const onEnd  = streamHttpEnd(req, subscriptionHeartbeat(channelIds));
 
-      streamFrom(channelIds, req, onSend, onEnd, options.needsFiltering);
+      streamFrom(channelIds, req, onSend, onEnd, options.needsFiltering, options.notificationOnly);
     }).catch(err => {
       log.verbose(req.requestId, 'Subscription error:', err.toString());
       httpNotFound(res);
@@ -876,118 +777,72 @@ const startWorker = async (workerId) => {
 
   /**
    * @param {any} req
-   * @return {string[]}
-   */
-  const channelsForUserStream = req => {
-    const arr = [`timeline:${req.accountId}`];
-
-    if (isInScope(req, ['crypto']) && req.deviceId) {
-      arr.push(`timeline:${req.accountId}:${req.deviceId}`);
-    }
-
-    if (isInScope(req, ['read', 'read:notifications'])) {
-      arr.push(`timeline:${req.accountId}:notifications`);
-    }
-
-    return arr;
-  };
-
-  /**
-   * See app/lib/ascii_folder.rb for the canon definitions
-   * of these constants
-   */
-  const NON_ASCII_CHARS        = 'ÀÁÂÃÄÅàáâãäåĀāĂăĄąÇçĆćĈĉĊċČčÐðĎďĐđÈÉÊËèéêëĒēĔĕĖėĘęĚěĜĝĞğĠġĢģĤĥĦħÌÍÎÏìíîïĨĩĪīĬĭĮįİıĴĵĶķĸĹĺĻļĽľĿŀŁłÑñŃńŅņŇňŉŊŋÒÓÔÕÖØòóôõöøŌōŎŏŐőŔŕŖŗŘřŚśŜŝŞşŠšſŢţŤťŦŧÙÚÛÜùúûüŨũŪūŬŭŮůŰűŲųŴŵÝýÿŶŷŸŹźŻżŽž';
-  const EQUIVALENT_ASCII_CHARS = 'AAAAAAaaaaaaAaAaAaCcCcCcCcCcDdDdDdEEEEeeeeEeEeEeEeEeGgGgGgGgHhHhIIIIiiiiIiIiIiIiIiJjKkkLlLlLlLlLlNnNnNnNnnNnOOOOOOooooooOoOoOoRrRrRrSsSsSsSssTtTtTtUUUUuuuuUuUuUuUuUuUuWwYyyYyYZzZzZz';
-
-  /**
-   * @param {string} str
-   * @return {string}
-   */
-  const foldToASCII = str => {
-    const regex = new RegExp(NON_ASCII_CHARS.split('').join('|'), 'g');
-
-    return str.replace(regex, match => {
-      const index = NON_ASCII_CHARS.indexOf(match);
-      return EQUIVALENT_ASCII_CHARS[index];
-    });
-  };
-
-  /**
-   * @param {string} str
-   * @return {string}
-   */
-  const normalizeHashtag = str => {
-    return foldToASCII(str.normalize('NFKC').toLowerCase()).replace(/[^\p{L}\p{N}_\u00b7\u200c]/gu, '');
-  };
-
-  /**
-   * @param {any} req
    * @param {string} name
    * @param {StreamParams} params
-   * @return {Promise.<{ channelIds: string[], options: { needsFiltering: boolean } }>}
+   * @return {Promise.<{ channelIds: string[], options: { needsFiltering: boolean, notificationOnly: boolean } }>}
    */
   const channelNameToIds = (req, name, params) => new Promise((resolve, reject) => {
-    switch (name) {
+    switch(name) {
     case 'user':
       resolve({
-        channelIds: channelsForUserStream(req),
-        options: { needsFiltering: false },
+        channelIds: req.deviceId ? [`timeline:${req.accountId}`, `timeline:${req.accountId}:${req.deviceId}`] : [`timeline:${req.accountId}`],
+        options: { needsFiltering: false, notificationOnly: false },
       });
 
       break;
     case 'user:notification':
       resolve({
-        channelIds: [`timeline:${req.accountId}:notifications`],
-        options: { needsFiltering: false },
+        channelIds: [`timeline:${req.accountId}`],
+        options: { needsFiltering: false, notificationOnly: true },
       });
 
       break;
     case 'public':
       resolve({
         channelIds: ['timeline:public'],
-        options: { needsFiltering: true },
+        options: { needsFiltering: true, notificationOnly: false },
       });
 
       break;
     case 'public:local':
       resolve({
         channelIds: ['timeline:public:local'],
-        options: { needsFiltering: true },
+        options: { needsFiltering: true, notificationOnly: false },
       });
 
       break;
     case 'public:remote':
       resolve({
         channelIds: ['timeline:public:remote'],
-        options: { needsFiltering: true },
+        options: { needsFiltering: true, notificationOnly: false },
       });
 
       break;
     case 'public:media':
       resolve({
         channelIds: ['timeline:public:media'],
-        options: { needsFiltering: true },
+        options: { needsFiltering: true, notificationOnly: false },
       });
 
       break;
     case 'public:local:media':
       resolve({
         channelIds: ['timeline:public:local:media'],
-        options: { needsFiltering: true },
+        options: { needsFiltering: true, notificationOnly: false },
       });
 
       break;
     case 'public:remote:media':
       resolve({
         channelIds: ['timeline:public:remote:media'],
-        options: { needsFiltering: true },
+        options: { needsFiltering: true, notificationOnly: false },
       });
 
       break;
     case 'direct':
       resolve({
         channelIds: [`timeline:direct:${req.accountId}`],
-        options: { needsFiltering: false },
+        options: { needsFiltering: false, notificationOnly: false },
       });
 
       break;
@@ -996,8 +851,8 @@ const startWorker = async (workerId) => {
         reject('No tag for stream provided');
       } else {
         resolve({
-          channelIds: [`timeline:hashtag:${normalizeHashtag(params.tag)}`],
-          options: { needsFiltering: true },
+          channelIds: [`timeline:hashtag:${params.tag.toLowerCase()}`],
+          options: { needsFiltering: true, notificationOnly: false },
         });
       }
 
@@ -1007,8 +862,8 @@ const startWorker = async (workerId) => {
         reject('No tag for stream provided');
       } else {
         resolve({
-          channelIds: [`timeline:hashtag:${normalizeHashtag(params.tag)}:local`],
-          options: { needsFiltering: true },
+          channelIds: [`timeline:hashtag:${params.tag.toLowerCase()}:local`],
+          options: { needsFiltering: true, notificationOnly: false },
         });
       }
 
@@ -1017,7 +872,7 @@ const startWorker = async (workerId) => {
       authorizeListAccess(params.list, req).then(() => {
         resolve({
           channelIds: [`timeline:list:${params.list}`],
-          options: { needsFiltering: false },
+          options: { needsFiltering: false, notificationOnly: false },
         });
       }).catch(() => {
         reject('Not authorized to stream this list');
@@ -1057,17 +912,14 @@ const startWorker = async (workerId) => {
    * @param {StreamParams} params
    */
   const subscribeWebsocketToChannel = ({ socket, request, subscriptions }, channelName, params) =>
-    checkScopes(request, channelName).then(() => channelNameToIds(request, channelName, params)).then(({
-      channelIds,
-      options,
-    }) => {
+    checkScopes(request, channelName).then(() => channelNameToIds(request, channelName, params)).then(({ channelIds, options }) => {
       if (subscriptions[channelIds.join(';')]) {
         return;
       }
 
-      const onSend = streamToWs(request, socket, streamNameFromChannelName(channelName, params));
+      const onSend        = streamToWs(request, socket, streamNameFromChannelName(channelName, params));
       const stopHeartbeat = subscriptionHeartbeat(channelIds);
-      const listener = streamFrom(channelIds, request, onSend, undefined, options.needsFiltering);
+      const listener      = streamFrom(channelIds, request, onSend, undefined, options.needsFiltering, options.notificationOnly);
 
       subscriptions[channelIds.join(';')] = {
         listener,
@@ -1111,30 +963,21 @@ const startWorker = async (workerId) => {
    * @param {WebSocketSession} session
    */
   const subscribeWebsocketToSystemChannel = ({ socket, request, subscriptions }) => {
-    const accessTokenChannelId = `timeline:access_token:${request.accessTokenId}`;
-    const systemChannelId = `timeline:system:${request.accountId}`;
+    const systemChannelId = `timeline:access_token:${request.accessTokenId}`;
 
     const listener = createSystemMessageListener(request, {
 
-      onKill() {
+      onKill () {
         socket.close();
       },
 
     });
 
-    subscribe(`${redisPrefix}${accessTokenChannelId}`, listener);
     subscribe(`${redisPrefix}${systemChannelId}`, listener);
-
-    subscriptions[accessTokenChannelId] = {
-      listener,
-      stopHeartbeat: () => {
-      },
-    };
 
     subscriptions[systemChannelId] = {
       listener,
-      stopHeartbeat: () => {
-      },
+      stopHeartbeat: () => {},
     };
   };
 
@@ -1153,7 +996,7 @@ const startWorker = async (workerId) => {
   wss.on('connection', (ws, req) => {
     const location = url.parse(req.url, true);
 
-    req.requestId = uuid.v4();
+    req.requestId     = uuid.v4();
     req.remoteAddress = ws._socket.remoteAddress;
 
     ws.isAlive = true;
@@ -1189,7 +1032,7 @@ const startWorker = async (workerId) => {
     ws.on('error', onEnd);
 
     ws.on('message', data => {
-      const json = parseJSON(data, session.request);
+      const json = parseJSON(data);
 
       if (!json) return;
 

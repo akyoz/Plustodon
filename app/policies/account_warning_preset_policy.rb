@@ -2,18 +2,18 @@
 
 class AccountWarningPresetPolicy < ApplicationPolicy
   def index?
-    role.can?(:manage_settings)
+    staff?
   end
 
   def create?
-    role.can?(:manage_settings)
+    staff?
   end
 
   def update?
-    role.can?(:manage_settings)
+    staff?
   end
 
   def destroy?
-    role.can?(:manage_settings)
+    staff?
   end
 end

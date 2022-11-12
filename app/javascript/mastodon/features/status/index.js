@@ -7,7 +7,6 @@ import ImmutablePropTypes from 'react-immutable-proptypes';
 import { createSelector } from 'reselect';
 import { fetchStatus } from '../../actions/statuses';
 import MissingIndicator from '../../components/missing_indicator';
-import LoadingIndicator from 'mastodon/components/loading_indicator';
 import DetailedStatus from './components/detailed_status';
 import ActionBar from './components/action_bar';
 import Column from '../ui/components/column';
@@ -30,11 +29,8 @@ import {
   muteStatus,
   unmuteStatus,
   deleteStatus,
-  editStatus,
   hideStatus,
   revealStatus,
-  translateStatus,
-  undoStatusTranslation,
 } from '../../actions/statuses';
 import {
   unblockAccount,
@@ -61,7 +57,6 @@ import { boostModal, deleteModal } from '../../initial_state';
 import { attachFullscreenListener, detachFullscreenListener, isFullscreen } from '../ui/util/fullscreen';
 import { textForScreenReader, defaultMediaVisibility } from '../../components/status';
 import Icon from 'mastodon/components/icon';
-import { Helmet } from 'react-helmet';
 
 const messages = defineMessages({
   deleteConfirm: { id: 'confirmations.delete.confirm', defaultMessage: 'Delete' },
@@ -146,7 +141,6 @@ const makeMapStateToProps = () => {
     }
 
     return {
-      isLoading: state.getIn(['statuses', props.params.statusId, 'isLoading']),
       status,
       ancestorsIds,
       descendantsIds,
@@ -159,37 +153,18 @@ const makeMapStateToProps = () => {
   return mapStateToProps;
 };
 
-const truncate = (str, num) => {
-  if (str.length > num) {
-    return str.slice(0, num) + '…';
-  } else {
-    return str;
-  }
-};
-
-const titleFromStatus = status => {
-  const displayName = status.getIn(['account', 'display_name']);
-  const username = status.getIn(['account', 'username']);
-  const prefix = displayName.trim().length === 0 ? username : displayName;
-  const text = status.get('search_index');
-
-  return `${prefix}: "${truncate(text, 30)}"`;
-};
-
 export default @injectIntl
 @connect(makeMapStateToProps)
 class Status extends ImmutablePureComponent {
 
   static contextTypes = {
     router: PropTypes.object,
-    identity: PropTypes.object,
   };
 
   static propTypes = {
     params: PropTypes.object.isRequired,
     dispatch: PropTypes.func.isRequired,
     status: ImmutablePropTypes.map,
-    isLoading: PropTypes.bool,
     ancestorsIds: ImmutablePropTypes.list,
     descendantsIds: ImmutablePropTypes.list,
     intl: PropTypes.object.isRequired,
@@ -232,21 +207,10 @@ class Status extends ImmutablePureComponent {
   }
 
   handleFavouriteClick = (status) => {
-    const { dispatch } = this.props;
-    const { signedIn } = this.context.identity;
-
-    if (signedIn) {
-      if (status.get('favourited')) {
-        dispatch(unfavourite(status));
-      } else {
-        dispatch(favourite(status));
-      }
+    if (status.get('favourited')) {
+      this.props.dispatch(unfavourite(status));
     } else {
-      dispatch(openModal('INTERACTION', {
-        type: 'favourite',
-        accountId: status.getIn(['account', 'id']),
-        url: status.get('url'),
-      }));
+      this.props.dispatch(favourite(status));
     }
   }
 
@@ -259,25 +223,15 @@ class Status extends ImmutablePureComponent {
   }
 
   handleReplyClick = (status) => {
-    const { askReplyConfirmation, dispatch, intl } = this.props;
-    const { signedIn } = this.context.identity;
-
-    if (signedIn) {
-      if (askReplyConfirmation) {
-        dispatch(openModal('CONFIRM', {
-          message: intl.formatMessage(messages.replyMessage),
-          confirm: intl.formatMessage(messages.replyConfirm),
-          onConfirm: () => dispatch(replyCompose(status, this.context.router.history)),
-        }));
-      } else {
-        dispatch(replyCompose(status, this.context.router.history));
-      }
-    } else {
-      dispatch(openModal('INTERACTION', {
-        type: 'reply',
-        accountId: status.getIn(['account', 'id']),
-        url: status.get('url'),
+    let { askReplyConfirmation, dispatch, intl } = this.props;
+    if (askReplyConfirmation) {
+      dispatch(openModal('CONFIRM', {
+        message: intl.formatMessage(messages.replyMessage),
+        confirm: intl.formatMessage(messages.replyConfirm),
+        onConfirm: () => dispatch(replyCompose(status, this.context.router.history)),
       }));
+    } else {
+      dispatch(replyCompose(status, this.context.router.history));
     }
   }
 
@@ -286,25 +240,14 @@ class Status extends ImmutablePureComponent {
   }
 
   handleReblogClick = (status, e) => {
-    const { dispatch } = this.props;
-    const { signedIn } = this.context.identity;
-
-    if (signedIn) {
-      if (status.get('reblogged')) {
-        dispatch(unreblog(status));
-      } else {
-        if ((e && e.shiftKey) || !boostModal) {
-          this.handleModalReblog(status);
-        } else {
-          dispatch(initBoostModal({ status, onReblog: this.handleModalReblog }));
-        }
-      }
+    if (status.get('reblogged')) {
+      this.props.dispatch(unreblog(status));
     } else {
-      dispatch(openModal('INTERACTION', {
-        type: 'reblog',
-        accountId: status.getIn(['account', 'id']),
-        url: status.get('url'),
-      }));
+      if ((e && e.shiftKey) || !boostModal) {
+        this.handleModalReblog(status);
+      } else {
+        this.props.dispatch(initBoostModal({ status, onReblog: this.handleModalReblog }));
+      }
     }
   }
 
@@ -328,10 +271,6 @@ class Status extends ImmutablePureComponent {
         onConfirm: () => dispatch(deleteStatus(status.get('id'), history, withRedraft)),
       }));
     }
-  }
-
-  handleEditClick = (status, history) => {
-    this.props.dispatch(editStatus(status.get('id'), history));
   }
 
   handleDirectClick = (account, router) => {
@@ -392,16 +331,6 @@ class Status extends ImmutablePureComponent {
       this.props.dispatch(revealStatus(statusIds));
     } else {
       this.props.dispatch(hideStatus(statusIds));
-    }
-  }
-
-  handleTranslate = status => {
-    const { dispatch } = this.props;
-
-    if (status.get('translation')) {
-      dispatch(undoStatusTranslation(status.get('id')));
-    } else {
-      dispatch(translateStatus(status.get('id')));
     }
   }
 
@@ -467,7 +396,7 @@ class Status extends ImmutablePureComponent {
   }
 
   handleHotkeyOpenProfile = () => {
-    this.context.router.history.push(`/@${this.props.status.getIn(['account', 'acct'])}`);
+    this.context.router.history.push(`/accounts/${this.props.status.getIn(['account', 'id'])}`);
   }
 
   handleHotkeyToggleHidden = () => {
@@ -569,16 +498,8 @@ class Status extends ImmutablePureComponent {
 
   render () {
     let ancestors, descendants;
-    const { isLoading, status, ancestorsIds, descendantsIds, intl, domain, multiColumn, pictureInPicture } = this.props;
+    const { status, ancestorsIds, descendantsIds, intl, domain, multiColumn, pictureInPicture } = this.props;
     const { fullscreen } = this.state;
-
-    if (isLoading) {
-      return (
-        <Column>
-          <LoadingIndicator />
-        </Column>
-      );
-    }
 
     if (status === null) {
       return (
@@ -596,9 +517,6 @@ class Status extends ImmutablePureComponent {
     if (descendantsIds && descendantsIds.size > 0) {
       descendants = <div>{this.renderChildren(descendantsIds)}</div>;
     }
-
-    const isLocal = status.getIn(['account', 'acct'], '').indexOf('@') === -1;
-    const isIndexable = !status.getIn(['account', 'noindex']);
 
     const handlers = {
       moveUp: this.handleHotkeyMoveUp,
@@ -619,7 +537,7 @@ class Status extends ImmutablePureComponent {
           showBackButton
           multiColumn={multiColumn}
           extraButton={(
-            <button type='button' className='column-header__button' title={intl.formatMessage(status.get('hidden') ? messages.revealAll : messages.hideAll)} aria-label={intl.formatMessage(status.get('hidden') ? messages.revealAll : messages.hideAll)} onClick={this.handleToggleAll}><Icon id={status.get('hidden') ? 'eye-slash' : 'eye'} /></button>
+            <button className='column-header__button' title={intl.formatMessage(status.get('hidden') ? messages.revealAll : messages.hideAll)} aria-label={intl.formatMessage(status.get('hidden') ? messages.revealAll : messages.hideAll)} onClick={this.handleToggleAll} aria-pressed={status.get('hidden') ? 'false' : 'true'}><Icon id={status.get('hidden') ? 'eye-slash' : 'eye'} /></button>
           )}
         />
 
@@ -635,7 +553,6 @@ class Status extends ImmutablePureComponent {
                   onOpenVideo={this.handleOpenVideo}
                   onOpenMedia={this.handleOpenMedia}
                   onToggleHidden={this.handleToggleHidden}
-                  onTranslate={this.handleTranslate}
                   domain={domain}
                   showMedia={this.state.showMedia}
                   onToggleMediaVisibility={this.handleToggleMediaVisibility}
@@ -650,7 +567,6 @@ class Status extends ImmutablePureComponent {
                   onReblog={this.handleReblogClick}
                   onBookmark={this.handleBookmarkClick}
                   onDelete={this.handleDeleteClick}
-                  onEdit={this.handleEditClick}
                   onDirect={this.handleDirectClick}
                   onMention={this.handleMentionClick}
                   onMute={this.handleMuteClick}
@@ -670,11 +586,6 @@ class Status extends ImmutablePureComponent {
             {descendants}
           </div>
         </ScrollContainer>
-
-        <Helmet>
-          <title>{titleFromStatus(status)}</title>
-          <meta name='robots' content={(isLocal && isIndexable) ? 'all' : 'noindex'} />
-        </Helmet>
       </Column>
     );
   }

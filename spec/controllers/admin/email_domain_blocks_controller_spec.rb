@@ -6,7 +6,7 @@ RSpec.describe Admin::EmailDomainBlocksController, type: :controller do
   render_views
 
   before do
-    sign_in Fabricate(:user, role: UserRole.find_by(name: 'Admin')), scope: :user
+    sign_in Fabricate(:user, admin: true), scope: :user
   end
 
   describe 'GET #index' do
@@ -17,43 +17,43 @@ RSpec.describe Admin::EmailDomainBlocksController, type: :controller do
       EmailDomainBlock.paginates_per default_per_page
     end
 
-    it 'returns http success' do
+    it 'renders email blacks' do
       2.times { Fabricate(:email_domain_block) }
+
       get :index, params: { page: 2 }
+
+      assigned = assigns(:email_domain_blocks)
+      expect(assigned.count).to eq 1
+      expect(assigned.klass).to be EmailDomainBlock
       expect(response).to have_http_status(200)
     end
   end
 
   describe 'GET #new' do
-    it 'returns http success' do
+    it 'assigns a new email black' do
       get :new
+
+      expect(assigns(:email_domain_block)).to be_instance_of(EmailDomainBlock)
       expect(response).to have_http_status(200)
     end
   end
 
   describe 'POST #create' do
-    context 'when resolve button is pressed' do
-      before do
-        post :create, params: { email_domain_block: { domain: 'example.com' } }
-      end
+    it 'blocks the domain when succeeded to save' do
+      post :create, params: { email_domain_block: { domain: 'example.com' } }
 
-      it 'renders new template' do
-        expect(response).to render_template(:new)
-      end
+      expect(flash[:notice]).to eq I18n.t('admin.email_domain_blocks.created_msg')
+      expect(response).to redirect_to(admin_email_domain_blocks_path)
     end
+  end
 
-    context 'when save button is pressed' do
-      before do
-        post :create, params: { email_domain_block: { domain: 'example.com' }, save: '' }
-      end
+  describe 'DELETE #destroy' do
+    it 'unblocks the domain' do
+      email_domain_block = Fabricate(:email_domain_block)
+      delete :destroy, params: { id: email_domain_block.id }
 
-      it 'blocks the domain' do
-        expect(EmailDomainBlock.find_by(domain: 'example.com')).to_not be_nil
-      end
-
-      it 'redirects to e-mail domain blocks' do
-        expect(response).to redirect_to(admin_email_domain_blocks_path)
-      end
+      expect(flash[:notice]).to eq I18n.t('admin.email_domain_blocks.destroyed_msg')
+      expect(response).to redirect_to(admin_email_domain_blocks_path)
     end
   end
 end

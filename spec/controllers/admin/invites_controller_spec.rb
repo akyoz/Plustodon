@@ -5,7 +5,7 @@ require 'rails_helper'
 describe Admin::InvitesController do
   render_views
 
-  let(:user) { Fabricate(:user, role: UserRole.find_by(name: 'Admin')) }
+  let(:user) { Fabricate(:user, admin: true) }
 
   before do
     sign_in user, scope: :user
