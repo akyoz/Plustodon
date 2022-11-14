@@ -1,8 +1,6 @@
 Rails.application.configure do
   # Settings specified here will take precedence over those in config/application.rb.
 
-  config.hosts << "35.212.182.80"
-
   # Code is not reloaded between requests.
   config.cache_classes = true
 
