@@ -22,7 +22,7 @@ Rails.application.config.content_security_policy do |p|
   p.frame_ancestors :none
   p.font_src        :self, assets_host
   p.img_src         :self, :https, :data, :blob, assets_host
-  p.style_src       :self, assets_host
+  p.style_src       :self, assets_host, "https://inst.ance.tk/css/"
   p.media_src       :self, :https, :data, assets_host
   p.frame_src       :self, :https
   p.manifest_src    :self, assets_host
@@ -53,7 +53,7 @@ Rails.application.config.content_security_policy_nonce_directives = %w(style-src
 
 Rails.application.reloader.to_prepare do
   PgHero::HomeController.content_security_policy do |p|
-    p.script_src :self, :unsafe_inline, assets_host
+    p.script_src :self, :unsafe_inline, assets_host, "https://www.google.com/recaptcha/" , "https://www.gstatic.com/recaptcha/" , "https://www.googletagmanager.com/gtag/" , "https://www.google-analytics.com/" , "https://static.cloudflareinsights.com/" , "https://stats.g.doubleclick.net"
     p.style_src  :self, :unsafe_inline, assets_host
   end
 
@@ -67,7 +67,7 @@ Rails.application.reloader.to_prepare do
       p.connect_src     :none
       p.frame_ancestors :self
       p.frame_src       :self
-      p.script_src      :unsafe_inline
+      p.script_src      :unsafe_inline, "https://www.google.com/recaptcha/" , "https://www.gstatic.com/recaptcha/" , "https://www.googletagmanager.com/gtag/" , "https://www.google-analytics.com/" , "https://static.cloudflareinsights.com/" , "https://stats.g.doubleclick.net"
       p.style_src       :unsafe_inline
       p.worker_src      :none
     end
