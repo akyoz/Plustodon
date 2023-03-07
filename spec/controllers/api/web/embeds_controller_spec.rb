@@ -6,12 +6,10 @@ describe Api::Web::EmbedsController do
   render_views
 
   let(:user) { Fabricate(:user) }
-
   before { sign_in user }
 
   describe 'POST #create' do
     subject(:response) { post :create, params: { url: url } }
-
     subject(:body) { JSON.parse(response.body, symbolize_names: true) }
 
     context 'when successfully finds status' do
@@ -19,7 +17,7 @@ describe Api::Web::EmbedsController do
       let(:url) { "http://#{Rails.configuration.x.web_domain}/@#{status.account.username}/#{status.id}" }
 
       it 'returns a right response' do
-        expect(response).to have_http_status 200
+        expect(response).to have_http_status :ok
         expect(body[:author_name]).to eq status.account.username
       end
     end
@@ -37,7 +35,7 @@ describe Api::Web::EmbedsController do
         let(:call_result) { { result: :ok } }
 
         it 'returns a right response' do
-          expect(response).to have_http_status 200
+          expect(response).to have_http_status :ok
           expect(body[:result]).to eq 'ok'
         end
       end
@@ -46,7 +44,7 @@ describe Api::Web::EmbedsController do
         let(:call_result) { nil }
 
         it 'returns a right response' do
-          expect(response).to have_http_status 404
+          expect(response).to have_http_status :not_found
         end
       end
     end

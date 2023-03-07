@@ -53,7 +53,11 @@ module Mastodon
     desc 'clear', 'Remove all home and list feeds from Redis'
     def clear
       keys = redis.keys('feed:*')
-      redis.del(keys)
+
+      redis.pipelined do
+        keys.each { |key| redis.del(key) }
+      end
+
       say('OK', :green)
     end
   end

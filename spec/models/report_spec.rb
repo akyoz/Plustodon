@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 require 'rails_helper'
 
 describe Report do
@@ -35,7 +33,7 @@ describe Report do
     end
 
     it 'assigns to a given account' do
-      expect(subject).to eq current_account.id
+      is_expected.to eq current_account.id
     end
   end
 
@@ -50,7 +48,7 @@ describe Report do
     end
 
     it 'unassigns' do
-      expect(subject).to be_nil
+      is_expected.to be_nil
     end
   end
 
@@ -121,6 +119,12 @@ describe Report do
   end
 
   describe 'validations' do
+    it 'has a valid fabricator' do
+      report = Fabricate(:report)
+      report.valid?
+      expect(report).to be_valid
+    end
+
     it 'is invalid if comment is longer than 1000 characters' do
       report = Fabricate.build(:report, comment: Faker::Lorem.characters(number: 1001))
       report.valid?

@@ -1,5 +1,4 @@
 # frozen_string_literal: true
-
 # == Schema Information
 #
 # Table name: accounts
@@ -79,14 +78,14 @@ class Account < ApplicationRecord
   include DomainMaterializable
   include AccountMerging
 
-  enum protocol: { ostatus: 0, activitypub: 1 }
-  enum suspension_origin: { local: 0, remote: 1 }, _prefix: true
+  enum protocol: [:ostatus, :activitypub]
+  enum suspension_origin: [:local, :remote], _prefix: true
 
   validates :username, presence: true
   validates_with UniqueUsernameValidator, if: -> { will_save_change_to_username? }
 
-  # Remote user validations, also applies to internal actors
-  validates :username, format: { with: USERNAME_ONLY_RE }, if: -> { (!local? || actor_type == 'Application') && will_save_change_to_username? }
+  # Remote user validations
+  validates :username, format: { with: USERNAME_ONLY_RE }, if: -> { !local? && will_save_change_to_username? }
 
   # Local user validations
   validates :username, format: { with: /\A[a-z0-9_]+\z/i }, length: { maximum: 30 }, if: -> { local? && will_save_change_to_username? && actor_type != 'Application' }
@@ -108,7 +107,7 @@ class Account < ApplicationRecord
   scope :bots, -> { where(actor_type: %w(Application Service)) }
   scope :groups, -> { where(actor_type: 'Group') }
   scope :alphabetic, -> { order(domain: :asc, username: :asc) }
-  scope :matches_username, ->(value) { where('lower((username)::text) LIKE lower(?)', "#{value}%") }
+  scope :matches_username, ->(value) { where(arel_table[:username].matches("#{value}%")) }
   scope :matches_display_name, ->(value) { where(arel_table[:display_name].matches("#{value}%")) }
   scope :matches_domain, ->(value) { where(arel_table[:domain].matches("%#{value}%")) }
   scope :without_unapproved, -> { left_outer_joins(:user).remote.or(left_outer_joins(:user).merge(User.approved.confirmed)) }
@@ -314,7 +313,9 @@ class Account < ApplicationRecord
 
         previous = old_fields.find { |item| item['value'] == attr[:value] }
 
-        attr[:verified_at] = previous['verified_at'] if previous && previous['verified_at'].present?
+        if previous && previous['verified_at'].present?
+          attr[:verified_at] = previous['verified_at']
+        end
 
         fields << attr
       end
@@ -340,15 +341,9 @@ class Account < ApplicationRecord
 
   def save_with_optional_media!
     save!
-  rescue ActiveRecord::RecordInvalid => e
-    errors = e.record.errors.errors
-    errors.each do |err|
-      if err.attribute == :avatar
-        self.avatar = nil
-      elsif err.attribute == :header
-        self.header = nil
-      end
-    end
+  rescue ActiveRecord::RecordInvalid
+    self.avatar = nil
+    self.header = nil
 
     save!
   end
@@ -460,12 +455,13 @@ class Account < ApplicationRecord
       return [] if text.blank?
 
       text.scan(MENTION_RE).map { |match| match.first.split('@', 2) }.uniq.filter_map do |(username, domain)|
-        domain = if TagManager.instance.local_domain?(domain)
-                   nil
-                 else
-                   TagManager.instance.normalize_domain(domain)
-                 end
-
+        domain = begin
+          if TagManager.instance.local_domain?(domain)
+            nil
+          else
+            TagManager.instance.normalize_domain(domain)
+          end
+        end
         EntityCache.instance.mention(username, domain)
       end
     end
@@ -511,8 +507,7 @@ class Account < ApplicationRecord
         <<-SQL.squish
           SELECT
             accounts.*,
-            #{BOOST} * ts_rank_cd(#{TEXTSEARCH}, to_tsquery('simple', :tsquery), 32) AS rank,
-            count(f.id) AS followed
+            (count(f.id) + 1) * #{BOOST} * ts_rank_cd(#{TEXTSEARCH}, to_tsquery('simple', :tsquery), 32) AS rank
           FROM accounts
           LEFT OUTER JOIN follows AS f ON (accounts.id = f.account_id AND f.target_account_id = :id) OR (accounts.id = f.target_account_id AND f.account_id = :id)
           LEFT JOIN users ON accounts.id = users.account_id
@@ -522,7 +517,7 @@ class Account < ApplicationRecord
             AND accounts.moved_to_account_id IS NULL
             AND (accounts.domain IS NOT NULL OR (users.approved = TRUE AND users.confirmed_at IS NOT NULL))
           GROUP BY accounts.id, s.id
-          ORDER BY followed DESC, rank DESC
+          ORDER BY rank DESC
           LIMIT :limit OFFSET :offset
         SQL
       end
@@ -540,7 +535,6 @@ class Account < ApplicationRecord
 
   def ensure_keys!
     return unless local? && private_key.blank? && public_key.blank?
-
     generate_keys
     save!
   end

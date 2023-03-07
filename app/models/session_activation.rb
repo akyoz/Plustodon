@@ -1,5 +1,4 @@
 # frozen_string_literal: true
-
 # == Schema Information
 #
 # Table name: session_activations
@@ -52,7 +51,6 @@ class SessionActivation < ApplicationRecord
 
     def deactivate(id)
       return unless id
-
       where(session_id: id).destroy_all
     end
 
@@ -61,7 +59,7 @@ class SessionActivation < ApplicationRecord
     end
 
     def exclusive(id)
-      where.not(session_id: id).destroy_all
+      where('session_id != ?', id).destroy_all
     end
   end
 

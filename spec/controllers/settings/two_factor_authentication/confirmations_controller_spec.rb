@@ -5,6 +5,7 @@ require 'rails_helper'
 describe Settings::TwoFactorAuthentication::ConfirmationsController do
   render_views
 
+
   shared_examples 'renders :new' do
     it 'renders the new view' do
       subject

@@ -55,13 +55,8 @@ module Omniauthable
 
       user = User.new(user_params_from_auth(email, auth))
 
-      begin
-        user.account.avatar_remote_url = auth.info.image if /\A#{URI::DEFAULT_PARSER.make_regexp(%w(http https))}\z/.match?(auth.info.image)
-      rescue Mastodon::UnexpectedResponseError
-        user.account.avatar_remote_url = nil
-      end
-
-      user.confirm! if email_is_verified
+      user.account.avatar_remote_url = auth.info.image if /\A#{URI::DEFAULT_PARSER.make_regexp(%w(http https))}\z/.match?(auth.info.image)
+      user.skip_confirmation! if email_is_verified
       user.save!
       user
     end
@@ -95,7 +90,8 @@ module Omniauthable
     def ensure_valid_username(starting_username)
       starting_username = starting_username.split('@')[0]
       temp_username = starting_username.gsub(/[^a-z0-9_]+/i, '')
-      temp_username.truncate(30, omission: '')
+      validated_username = temp_username.truncate(30, omission: '')
+      validated_username
     end
   end
 end

@@ -17,13 +17,13 @@ class AccountFilter
   attr_reader :params
 
   def initialize(params)
-    @params = params.to_h.symbolize_keys
+    @params = params
   end
 
   def results
     scope = Account.includes(:account_stat, user: [:ips, :invite_request]).without_instance_actor.reorder(nil)
 
-    relevant_params.each do |key, value|
+    params.each do |key, value|
       next if key.to_s == 'page'
 
       scope.merge!(scope_for(key, value)) if value.present?
@@ -34,16 +34,6 @@ class AccountFilter
 
   private
 
-  def relevant_params
-    params.tap do |args|
-      args.delete(:origin) if origin_is_remote_and_domain_present?
-    end
-  end
-
-  def origin_is_remote_and_domain_present?
-    params[:origin] == 'remote' && params[:by_domain].present?
-  end
-
   def scope_for(key, value)
     case key.to_s
     when 'origin'
@@ -53,13 +43,13 @@ class AccountFilter
     when 'status'
       status_scope(value)
     when 'by_domain'
-      Account.where(domain: value.to_s.strip)
+      Account.where(domain: value.to_s)
     when 'username'
-      Account.matches_username(value.to_s.strip)
+      Account.matches_username(value.to_s)
     when 'display_name'
-      Account.matches_display_name(value.to_s.strip)
+      Account.matches_display_name(value.to_s)
     when 'email'
-      accounts_with_users.merge(User.matches_email(value.to_s.strip))
+      accounts_with_users.merge(User.matches_email(value.to_s))
     when 'ip'
       valid_ip?(value) ? accounts_with_users.merge(User.matches_ip(value).group('users.id, accounts.id')) : Account.none
     when 'invited_by'
@@ -91,7 +81,7 @@ class AccountFilter
     when 'suspended'
       Account.suspended
     when 'disabled'
-      accounts_with_users.merge(User.disabled).without_suspended
+      accounts_with_users.merge(User.disabled)
     when 'silenced'
       Account.silenced
     when 'sensitized'
@@ -104,15 +94,7 @@ class AccountFilter
   def order_scope(value)
     case value.to_s
     when 'active'
-      accounts_with_users
-        .left_joins(:account_stat)
-        .order(
-          Arel.sql(
-            <<~SQL.squish
-              COALESCE(users.current_sign_in_at, account_stats.last_status_at, to_timestamp(0)) DESC, accounts.id DESC
-            SQL
-          )
-        )
+      accounts_with_users.left_joins(:account_stat).order(Arel.sql('coalesce(users.current_sign_in_at, account_stats.last_status_at, to_timestamp(0)) desc, accounts.id desc'))
     when 'recent'
       Account.recent
     else

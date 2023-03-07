@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 require 'rails_helper'
 
 RSpec.describe ActivityPub::OutboxesController, type: :controller do
@@ -8,7 +6,7 @@ RSpec.describe ActivityPub::OutboxesController, type: :controller do
   shared_examples 'cacheable response' do
     it 'does not set cookies' do
       expect(response.cookies).to be_empty
-      expect(response.headers['Set-Cookies']).to be_nil
+      expect(response.headers['Set-Cookies']).to be nil
     end
 
     it 'does not set sessions' do
@@ -35,11 +33,10 @@ RSpec.describe ActivityPub::OutboxesController, type: :controller do
 
   describe 'GET #show' do
     context 'without signature' do
-      subject(:body) { body_as_json }
+      let(:remote_account) { nil }
 
       subject(:response) { get :show, params: { account_username: account.username, page: page } }
-
-      let(:remote_account) { nil }
+      subject(:body) { body_as_json }
 
       context 'with page not requested' do
         let(:page) { nil }

@@ -10,3 +10,4 @@ class CreateAccountNotes < ActiveRecord::Migration[5.2]
     end
   end
 end
+

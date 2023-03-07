@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 require 'rails_helper'
 
 RSpec.describe PlainTextFormatter do
@@ -10,7 +8,7 @@ RSpec.describe PlainTextFormatter do
       let(:status) { Fabricate(:status, text: '<p>a text by a nerd who uses an HTML tag in text</p>', uri: nil) }
 
       it 'returns the raw text' do
-        expect(subject).to eq '<p>a text by a nerd who uses an HTML tag in text</p>'
+        is_expected.to eq '<p>a text by a nerd who uses an HTML tag in text</p>'
       end
     end
 
@@ -19,7 +17,7 @@ RSpec.describe PlainTextFormatter do
       let(:status) { Fabricate(:status, account: remote_account, text: '<p>Hello</p><script>alert("Hello")</script>') }
 
       it 'returns tag-stripped text' do
-        expect(subject).to eq 'Hello'
+        is_expected.to eq 'Hello'
       end
     end
   end

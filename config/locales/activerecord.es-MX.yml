@@ -3,7 +3,7 @@ es-MX:
   activerecord:
     attributes:
       poll:
-        expires_at: Fecha límite
+        expires_at: Vencimiento
         options: Opciones
       user:
         agreement: Contrato de servicio
@@ -28,7 +28,7 @@ es-MX:
         doorkeeper/application:
           attributes:
             website:
-              invalid: no es un URL válido
+              invalid: no es una URL válida
         import:
           attributes:
             data:

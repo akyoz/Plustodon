@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 require 'rails_helper'
 
 RSpec.describe TagManager do
@@ -16,15 +14,15 @@ RSpec.describe TagManager do
     end
 
     it 'returns true for nil' do
-      expect(TagManager.instance.local_domain?(nil)).to be true
+      expect(TagManager.instance.local_domain?(nil)).to eq true
     end
 
     it 'returns true if the slash-stripped string equals to local domain' do
-      expect(TagManager.instance.local_domain?('DoMaIn.Example.com/')).to be true
+      expect(TagManager.instance.local_domain?('DoMaIn.Example.com/')).to eq true
     end
 
     it 'returns false for irrelevant string' do
-      expect(TagManager.instance.local_domain?('DoMaIn.Example.com!')).to be false
+      expect(TagManager.instance.local_domain?('DoMaIn.Example.com!')).to eq false
     end
   end
 
@@ -41,21 +39,21 @@ RSpec.describe TagManager do
     end
 
     it 'returns true for nil' do
-      expect(TagManager.instance.web_domain?(nil)).to be true
+      expect(TagManager.instance.web_domain?(nil)).to eq true
     end
 
     it 'returns true if the slash-stripped string equals to web domain' do
-      expect(TagManager.instance.web_domain?('DoMaIn.Example.com/')).to be true
+      expect(TagManager.instance.web_domain?('DoMaIn.Example.com/')).to eq true
     end
 
     it 'returns false for string with irrelevant characters' do
-      expect(TagManager.instance.web_domain?('DoMaIn.Example.com!')).to be false
+      expect(TagManager.instance.web_domain?('DoMaIn.Example.com!')).to eq false
     end
   end
 
   describe '#normalize_domain' do
     it 'returns nil if the given parameter is nil' do
-      expect(TagManager.instance.normalize_domain(nil)).to be_nil
+      expect(TagManager.instance.normalize_domain(nil)).to eq nil
     end
 
     it 'returns normalized domain' do
@@ -72,17 +70,17 @@ RSpec.describe TagManager do
 
     it 'returns true if the normalized string with port is local URL' do
       Rails.configuration.x.web_domain = 'domain.example.com:42'
-      expect(TagManager.instance.local_url?('https://DoMaIn.Example.com:42/')).to be true
+      expect(TagManager.instance.local_url?('https://DoMaIn.Example.com:42/')).to eq true
     end
 
     it 'returns true if the normalized string without port is local URL' do
       Rails.configuration.x.web_domain = 'domain.example.com'
-      expect(TagManager.instance.local_url?('https://DoMaIn.Example.com/')).to be true
+      expect(TagManager.instance.local_url?('https://DoMaIn.Example.com/')).to eq true
     end
 
     it 'returns false for string with irrelevant characters' do
       Rails.configuration.x.web_domain = 'domain.example.com'
-      expect(TagManager.instance.local_url?('https://domain.example.net/')).to be false
+      expect(TagManager.instance.local_url?('https://domain.example.net/')).to eq false
     end
   end
 end

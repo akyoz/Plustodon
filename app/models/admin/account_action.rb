@@ -166,11 +166,13 @@ class Admin::AccountAction
   end
 
   def reports
-    @reports ||= if type == 'none'
-                   with_report? ? [report] : []
-                 else
-                   Report.where(target_account: target_account).unresolved
-                 end
+    @reports ||= begin
+      if type == 'none'
+        with_report? ? [report] : []
+      else
+        Report.where(target_account: target_account).unresolved
+      end
+    end
   end
 
   def warning_preset

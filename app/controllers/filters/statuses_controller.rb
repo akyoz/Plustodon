@@ -38,7 +38,9 @@ class Filters::StatusesController < ApplicationController
   end
 
   def action_from_button
-    'remove' if params[:remove]
+    if params[:remove]
+      'remove'
+    end
   end
 
   def set_body_classes

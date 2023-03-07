@@ -18,8 +18,6 @@ module Mastodon
     option :dry_run, type: :boolean
     option :limited_federation_mode, type: :boolean
     option :by_uri, type: :boolean
-    option :include_subdomains, type: :boolean
-    option :purge_domain_blocks, type: :boolean
     desc 'purge [DOMAIN...]', 'Remove accounts from a DOMAIN without a trace'
     long_desc <<-LONG_DESC
       Remove all accounts from a given DOMAIN without leaving behind any
@@ -35,75 +33,40 @@ module Mastodon
       that has the handle `foo@bar.com` but whose profile is at the URL
       `https://mastodon-bar.com/users/foo`, would be purged by either
       `tootctl domains purge bar.com` or `tootctl domains purge --by-uri mastodon-bar.com`.
-
-      When the --include-subdomains option is given, not only DOMAIN is deleted, but all
-      subdomains as well. Note that this may be considerably slower.
-
-      When the --purge-domain-blocks option is given, also purge matching domain blocks.
     LONG_DESC
     def purge(*domains)
-      dry_run            = options[:dry_run] ? ' (DRY RUN)' : ''
-      domains            = domains.map { |domain| TagManager.instance.normalize_domain(domain) }
-      account_scope      = Account.none
-      domain_block_scope = DomainBlock.none
-      emoji_scope        = CustomEmoji.none
+      dry_run = options[:dry_run] ? ' (DRY RUN)' : ''
 
-      # Sanity check on command arguments
-      if options[:limited_federation_mode] && !domains.empty?
-        say('DOMAIN parameter not supported with --limited-federation-mode', :red)
-        exit(1)
-      elsif domains.empty? && !options[:limited_federation_mode]
-        say('No domain(s) given', :red)
-        exit(1)
-      end
-
-      # Build scopes from command arguments
-      if options[:limited_federation_mode]
-        account_scope = Account.remote.where.not(domain: DomainAllow.select(:domain))
-        emoji_scope   = CustomEmoji.remote.where.not(domain: DomainAllow.select(:domain))
-      else
-        # Handle wildcard subdomains
-        subdomain_patterns = domains.filter_map { |domain| "%.#{Account.sanitize_sql_like(domain[2..])}" if domain.start_with?('*.') }
-        domains = domains.filter { |domain| !domain.start_with?('*.') }
-        # Handle --include-subdomains
-        subdomain_patterns += domains.map { |domain| "%.#{Account.sanitize_sql_like(domain)}" } if options[:include_subdomains]
-        uri_patterns = (domains.map { |domain| Account.sanitize_sql_like(domain) } + subdomain_patterns).map { |pattern| "https://#{pattern}/%" }
-
-        if options[:purge_domain_blocks]
-          domain_block_scope = DomainBlock.where(domain: domains)
-          domain_block_scope = domain_block_scope.or(DomainBlock.where(DomainBlock.arel_table[:domain].matches_any(subdomain_patterns))) unless subdomain_patterns.empty?
-        end
-
-        if options[:by_uri]
-          account_scope = Account.remote.where(Account.arel_table[:uri].matches_any(uri_patterns, false, true))
-          emoji_scope   = CustomEmoji.remote.where(CustomEmoji.arel_table[:uri].matches_any(uri_patterns, false, true))
+      scope = begin
+        if options[:limited_federation_mode]
+          Account.remote.where.not(domain: DomainAllow.pluck(:domain))
+        elsif !domains.empty?
+          if options[:by_uri]
+            domains.map { |domain| Account.remote.where(Account.arel_table[:uri].matches("https://#{domain}/%", false, true)) }.reduce(:or)
+          else
+            Account.remote.where(domain: domains)
+          end
         else
-          account_scope = Account.remote.where(domain: domains)
-          account_scope = account_scope.or(Account.remote.where(Account.arel_table[:domain].matches_any(subdomain_patterns))) unless subdomain_patterns.empty?
-          emoji_scope   = CustomEmoji.where(domain: domains)
-          emoji_scope   = emoji_scope.or(CustomEmoji.remote.where(CustomEmoji.arel_table[:uri].matches_any(subdomain_patterns))) unless subdomain_patterns.empty?
+          say('No domain(s) given', :red)
+          exit(1)
         end
       end
 
-      # Actually perform the deletions
-      processed, = parallelize_with_progress(account_scope) do |account|
+      processed, = parallelize_with_progress(scope) do |account|
         DeleteAccountService.new.call(account, reserve_username: false, skip_side_effects: true) unless options[:dry_run]
       end
 
+      DomainBlock.where(domain: domains).destroy_all unless options[:dry_run]
+
       say("Removed #{processed} accounts#{dry_run}", :green)
 
-      if options[:purge_domain_blocks]
-        domain_block_count = domain_block_scope.count
-        domain_block_scope.in_batches.destroy_all unless options[:dry_run]
-        say("Removed #{domain_block_count} domain blocks#{dry_run}", :green)
-      end
-
-      custom_emojis_count = emoji_scope.count
-      emoji_scope.in_batches.destroy_all unless options[:dry_run]
+      custom_emojis = CustomEmoji.where(domain: domains)
+      custom_emojis_count = custom_emojis.count
+      custom_emojis.destroy_all unless options[:dry_run]
 
       Instance.refresh unless options[:dry_run]
 
-      say("Removed #{custom_emojis_count} custom emojis#{dry_run}", :green)
+      say("Removed #{custom_emojis_count} custom emojis", :green)
     end
 
     option :concurrency, type: :numeric, default: 50, aliases: [:c]
@@ -134,12 +97,12 @@ module Mastodon
       failed          = Concurrent::AtomicFixnum.new(0)
       start_at        = Time.now.to_f
       seed            = start ? [start] : Instance.pluck(:domain)
-      blocked_domains = /\.?(#{DomainBlock.where(severity: 1).pluck(:domain).map { |domain| Regexp.escape(domain) }.join('|')})$/
+      blocked_domains = Regexp.new('\\.?' + DomainBlock.where(severity: 1).pluck(:domain).join('|') + '$')
       progress        = create_progress_bar
 
       pool = Concurrent::ThreadPoolExecutor.new(min_threads: 0, max_threads: options[:concurrency], idletime: 10, auto_terminate: true, max_queue: 0)
 
-      work_unit = lambda do |domain|
+      work_unit = ->(domain) do
         next if stats.key?(domain)
         next if options[:exclude_suspended] && domain.match?(blocked_domains)
 
@@ -148,7 +111,6 @@ module Mastodon
         begin
           Request.new(:get, "https://#{domain}/api/v1/instance").perform do |res|
             next unless res.code == 200
-
             stats[domain] = Oj.load(res.to_s)
           end
 
@@ -162,10 +124,9 @@ module Mastodon
 
           Request.new(:get, "https://#{domain}/api/v1/instance/activity").perform do |res|
             next unless res.code == 200
-
             stats[domain]['activity'] = Oj.load(res.to_s)
           end
-        rescue
+        rescue StandardError
           failed.increment
         ensure
           processed.increment

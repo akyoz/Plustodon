@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 require 'rails_helper'
 
 RSpec.describe Api::V1::FavouritesController, type: :controller do
@@ -12,7 +10,7 @@ RSpec.describe Api::V1::FavouritesController, type: :controller do
     context 'without token' do
       it 'returns http unauthorized' do
         get :index
-        expect(response).to have_http_status 401
+        expect(response).to have_http_status :unauthorized
       end
     end
 
@@ -26,7 +24,7 @@ RSpec.describe Api::V1::FavouritesController, type: :controller do
 
         it 'returns http forbidden' do
           get :index
-          expect(response).to have_http_status 403
+          expect(response).to have_http_status :forbidden
         end
       end
 
@@ -40,7 +38,7 @@ RSpec.describe Api::V1::FavouritesController, type: :controller do
 
         it 'returns http unprocessable entity' do
           get :index
-          expect(response).to have_http_status 422
+          expect(response).to have_http_status :unprocessable_entity
         end
       end
 
@@ -65,14 +63,14 @@ RSpec.describe Api::V1::FavouritesController, type: :controller do
 
           get :index, params: { limit: 1 }
 
-          expect(response.headers['Link'].find_link(%w(rel next)).href).to eq "http://test.host/api/v1/favourites?limit=1&max_id=#{favourite.id}"
-          expect(response.headers['Link'].find_link(%w(rel prev)).href).to eq "http://test.host/api/v1/favourites?limit=1&min_id=#{favourite.id}"
+          expect(response.headers['Link'].find_link(['rel', 'next']).href).to eq "http://test.host/api/v1/favourites?limit=1&max_id=#{favourite.id}"
+          expect(response.headers['Link'].find_link(['rel', 'prev']).href).to eq "http://test.host/api/v1/favourites?limit=1&min_id=#{favourite.id}"
         end
 
         it 'does not add pagination headers if not necessary' do
           get :index
 
-          expect(response.headers['Link']).to be_nil
+          expect(response.headers['Link']).to eq nil
         end
       end
     end

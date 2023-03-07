@@ -27,12 +27,14 @@ class ActivityTracker
     (start_at.to_date...end_at.to_date).map do |date|
       key = key_at(date.to_time(:utc))
 
-      value = case @type
-              when :basic
-                redis.get(key).to_i
-              when :unique
-                redis.pfcount(key)
-              end
+      value = begin
+        case @type
+        when :basic
+          redis.get(key).to_i
+        when :unique
+          redis.pfcount(key)
+        end
+      end
 
       [date, value]
     end

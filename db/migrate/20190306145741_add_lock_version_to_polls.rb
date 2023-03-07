@@ -21,3 +21,4 @@ class AddLockVersionToPolls < ActiveRecord::Migration[5.2]
     remove_column :polls, :lock_version
   end
 end
+

@@ -33,7 +33,7 @@ describe RequestPool do
 
       subject
 
-      threads = 20.times.map do |_i|
+      threads = 20.times.map do |i|
         Thread.new do
           20.times do
             subject.with('http://example.com') do |http_client|

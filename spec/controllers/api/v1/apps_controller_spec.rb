@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 require 'rails_helper'
 
 RSpec.describe Api::V1::AppsController, type: :controller do
@@ -30,7 +28,7 @@ RSpec.describe Api::V1::AppsController, type: :controller do
       end
 
       it 'creates an OAuth app' do
-        expect(Doorkeeper::Application.find_by(name: client_name)).to_not be_nil
+        expect(Doorkeeper::Application.find_by(name: client_name)).to_not be nil
       end
 
       it 'returns client ID and client secret' do
@@ -70,7 +68,7 @@ RSpec.describe Api::V1::AppsController, type: :controller do
     end
 
     context 'with a too-long website' do
-      let(:website) { "https://foo.bar/#{'hoge' * 2_000}" }
+      let(:website) { 'https://foo.bar/' + ('hoge' * 2_000) }
 
       it 'returns http unprocessable entity' do
         expect(response).to have_http_status(422)
@@ -78,7 +76,7 @@ RSpec.describe Api::V1::AppsController, type: :controller do
     end
 
     context 'with a too-long redirect_uris' do
-      let(:redirect_uris) { "https://foo.bar/#{'hoge' * 2_000}" }
+      let(:redirect_uris) { 'https://foo.bar/' + ('hoge' * 2_000) }
 
       it 'returns http unprocessable entity' do
         expect(response).to have_http_status(422)

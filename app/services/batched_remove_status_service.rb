@@ -19,7 +19,9 @@ class BatchedRemoveStatusService < BaseService
 
     ActiveRecord::Associations::Preloader.new.preload(statuses_with_account_conversations, [mentions: :account])
 
-    statuses_with_account_conversations.each(&:unlink_from_conversations!)
+    statuses_with_account_conversations.each do |status|
+      status.send(:unlink_from_conversations)
+    end
 
     # We do not batch all deletes into one to avoid having a long-running
     # transaction lock the database, but we use the delete method instead
@@ -45,9 +47,9 @@ class BatchedRemoveStatusService < BaseService
 
     # Cannot be batched
     @status_id_cutoff = Mastodon::Snowflake.id_at(2.weeks.ago)
-    redis.pipelined do |pipeline|
+    redis.pipelined do
       statuses.each do |status|
-        unpush_from_public_timelines(status, pipeline)
+        unpush_from_public_timelines(status)
       end
     end
   end
@@ -70,22 +72,22 @@ class BatchedRemoveStatusService < BaseService
     end
   end
 
-  def unpush_from_public_timelines(status, pipeline)
+  def unpush_from_public_timelines(status)
     return unless status.public_visibility? && status.id > @status_id_cutoff
 
     payload = Oj.dump(event: :delete, payload: status.id.to_s)
 
-    pipeline.publish('timeline:public', payload)
-    pipeline.publish(status.local? ? 'timeline:public:local' : 'timeline:public:remote', payload)
+    redis.publish('timeline:public', payload)
+    redis.publish(status.local? ? 'timeline:public:local' : 'timeline:public:remote', payload)
 
     if status.media_attachments.any?
-      pipeline.publish('timeline:public:media', payload)
-      pipeline.publish(status.local? ? 'timeline:public:local:media' : 'timeline:public:remote:media', payload)
+      redis.publish('timeline:public:media', payload)
+      redis.publish(status.local? ? 'timeline:public:local:media' : 'timeline:public:remote:media', payload)
     end
 
     status.tags.map { |tag| tag.name.mb_chars.downcase }.each do |hashtag|
-      pipeline.publish("timeline:hashtag:#{hashtag}", payload)
-      pipeline.publish("timeline:hashtag:#{hashtag}:local", payload) if status.local?
+      redis.publish("timeline:hashtag:#{hashtag}", payload)
+      redis.publish("timeline:hashtag:#{hashtag}:local", payload) if status.local?
     end
   end
 end

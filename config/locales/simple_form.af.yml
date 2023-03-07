@@ -3,26 +3,20 @@ af:
   simple_form:
     hints:
       announcement:
-        scheduled_at: Laat oop om die aankondiging onmiddellik te publiseer
-      defaults:
-        autofollow: Mense wat aanmeld deur die uitnodiging te aanvaar, sal jou outomaties volg
+        scheduled_at: Los blanko om die aankondiging onmiddelik te publiseer
       featured_tag:
-        name: 'Hier is van die hutsetikette wat jy onlangs gebruik het:'
+        name: 'Hier is van die hits-etikette wat jy onlangs gebruik het:'
       webhook:
-        events: Kies gebeurtenisse vir stuur
+        events: Kies gebeurtenisse om te stuur
         url: Waarheen gebeurtenisse gestuur sal word
     labels:
       defaults:
-        locale: Koppelvlaktaal
-      featured_tag:
-        name: Hutsetiket
+        locale: Koppelvlak taal
       form_admin_settings:
         site_terms: Privaatheidsbeleid
       interactions:
-        must_be_following: Blokkeer kennisgewings van persone wat jy nie volg nie
-        must_be_following_dm: Blokkeer direkte boodskappe van persone wat jy nie volg nie
-      tag:
-        name: Hutsetiket
+        must_be_following: Blokeer kennisgewings vanaf persone wat jy nie volg nie
+        must_be_following_dm: Blokeer direkte boodskappe van persone wat jy nie volg nie
       webhook:
         events: Geaktiveerde gebeurtenisse
-        url: Eindpunt-URL
+        url: End-punt URL

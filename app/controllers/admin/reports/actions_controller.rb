@@ -3,11 +3,6 @@
 class Admin::Reports::ActionsController < Admin::BaseController
   before_action :set_report
 
-  def preview
-    authorize @report, :show?
-    @moderation_action = action_from_button
-  end
-
   def create
     authorize @report, :show?
 
@@ -18,8 +13,7 @@ class Admin::Reports::ActionsController < Admin::BaseController
         status_ids: @report.status_ids,
         current_account: current_account,
         report_id: @report.id,
-        send_email_notification: !@report.spam?,
-        text: params[:text]
+        send_email_notification: !@report.spam?
       )
 
       status_batch_action.save!
@@ -29,16 +23,13 @@ class Admin::Reports::ActionsController < Admin::BaseController
         report_id: @report.id,
         target_account: @report.target_account,
         current_account: current_account,
-        send_email_notification: !@report.spam?,
-        text: params[:text]
+        send_email_notification: !@report.spam?
       )
 
       account_action.save!
-    else
-      return redirect_to admin_report_path(@report), alert: I18n.t('admin.reports.unknown_action_msg', action: action_from_button)
     end
 
-    redirect_to admin_reports_path, notice: I18n.t('admin.reports.processed_msg', id: @report.id)
+    redirect_to admin_reports_path
   end
 
   private
@@ -56,8 +47,6 @@ class Admin::Reports::ActionsController < Admin::BaseController
       'silence'
     elsif params[:suspend]
       'suspend'
-    elsif params[:moderation_action]
-      params[:moderation_action]
     end
   end
 end

@@ -18,7 +18,7 @@ class ActivityPub::Activity::Update < ActivityPub::Activity
   def update_account
     return reject_payload! if @account.uri != object_uri
 
-    ActivityPub::ProcessAccountService.new.call(@account.username, @account.domain, @object, signed_with_known_key: true, request_id: @options[:request_id])
+    ActivityPub::ProcessAccountService.new.call(@account.username, @account.domain, @object, signed_with_known_key: true)
   end
 
   def update_status
@@ -28,6 +28,6 @@ class ActivityPub::Activity::Update < ActivityPub::Activity
 
     return if @status.nil?
 
-    ActivityPub::ProcessStatusUpdateService.new.call(@status, @object, request_id: @options[:request_id])
+    ActivityPub::ProcessStatusUpdateService.new.call(@status, @object)
   end
 end

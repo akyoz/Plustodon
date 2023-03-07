@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 require 'rails_helper'
 
 RSpec.describe Api::V1::MediaController, type: :controller do
@@ -21,7 +19,7 @@ RSpec.describe Api::V1::MediaController, type: :controller do
         end
 
         it 'returns http 422' do
-          expect(response).to have_http_status(422)
+          expect(response).to have_http_status(:unprocessable_entity)
         end
       end
 
@@ -108,7 +106,7 @@ RSpec.describe Api::V1::MediaController, type: :controller do
 
       it 'returns http not found' do
         put :update, params: { id: media.id, description: 'Lorem ipsum!!!' }
-        expect(response).to have_http_status(404)
+        expect(response).to have_http_status(:not_found)
       end
     end
 
@@ -128,7 +126,7 @@ RSpec.describe Api::V1::MediaController, type: :controller do
         let(:status) { Fabricate(:status, account: user.account) }
 
         it 'returns http not found' do
-          expect(response).to have_http_status(404)
+          expect(response).to have_http_status(:not_found)
         end
       end
     end

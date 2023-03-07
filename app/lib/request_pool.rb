@@ -64,7 +64,7 @@ class RequestPool
           retries     += 1
           retry
         end
-      rescue
+      rescue StandardError
         # If this connection raises errors of any kind, it's
         # better if it gets reaped as soon as possible
 

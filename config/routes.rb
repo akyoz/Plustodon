@@ -27,7 +27,6 @@ Rails.application.routes.draw do
     /blocks
     /domain_blocks
     /mutes
-    /followed_tags
     /statuses/(*any)
   ).freeze
 
@@ -109,8 +108,6 @@ Rails.application.routes.draw do
   end
 
   resource :inbox, only: [:create], module: :activitypub
-
-  get '/:encoded_at(*path)', to: redirect("/@%{path}"), constraints: { encoded_at: /%40/ }
 
   constraints(username: /[^@\/.]+/) do
     get '/@:username', to: 'accounts#show', as: :short_account
@@ -228,25 +225,7 @@ Rails.application.routes.draw do
     get '/dashboard', to: 'dashboard#index'
 
     resources :domain_allows, only: [:new, :create, :show, :destroy]
-    resources :domain_blocks, only: [:new, :create, :show, :destroy, :update, :edit] do
-      collection do
-        post :batch
-      end
-    end
-
-    resources :export_domain_allows, only: [:new] do
-      collection do
-        get :export, constraints: { format: :csv }
-        post :import
-      end
-    end
-
-    resources :export_domain_blocks, only: [:new] do
-      collection do
-        get :export, constraints: { format: :csv }
-        post :import
-      end
-    end
+    resources :domain_blocks, only: [:new, :create, :destroy, :update, :edit]
 
     resources :email_domain_blocks, only: [:index, :new, :create] do
       collection do
@@ -313,11 +292,7 @@ Rails.application.routes.draw do
     end
 
     resources :reports, only: [:index, :show] do
-      resources :actions, only: [:create], controller: 'reports/actions' do
-        collection do
-          post :preview
-        end
-      end
+      resources :actions, only: [:create], controller: 'reports/actions'
 
       member do
         post :assign_to_self
@@ -472,9 +447,7 @@ Rails.application.routes.draw do
         resources :list, only: :show
       end
 
-      get '/streaming', to: 'streaming#index'
-      get '/streaming/(*any)', to: 'streaming#index'
-
+      resources :streaming, only: [:index]
       resources :custom_emojis, only: [:index]
       resources :suggestions, only: [:index, :destroy]
       resources :scheduled_statuses, only: [:index, :show, :update, :destroy]
@@ -550,7 +523,6 @@ Rails.application.routes.draw do
       end
 
       resource :domain_blocks, only: [:show, :create, :destroy]
-
       resource :directory, only: [:show]
 
       resources :follow_requests, only: [:index] do

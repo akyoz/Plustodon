@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 require 'rails_helper'
 
 RSpec.describe EntityCache do
@@ -14,7 +12,7 @@ RSpec.describe EntityCache do
       let(:domain)     { 'example.org' }
 
       it 'returns an empty array' do
-        expect(subject).to eq []
+        is_expected.to eq []
       end
     end
   end

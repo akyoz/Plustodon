@@ -10,5 +10,6 @@ class ResetWebAppSecret < ActiveRecord::Migration[5.2]
     web_app.save!
   end
 
-  def down; end
+  def down
+  end
 end

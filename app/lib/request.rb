@@ -30,8 +30,7 @@ class Request
     @verb        = verb
     @url         = Addressable::URI.parse(url).normalize
     @http_client = options.delete(:http_client)
-    @allow_local = options.delete(:allow_local)
-    @options     = options.merge(socket_class: use_proxy? || @allow_local ? ProxySocket : Socket)
+    @options     = options.merge(socket_class: use_proxy? ? ProxySocket : Socket)
     @options     = @options.merge(proxy_url) if use_proxy?
     @headers     = {}
 
@@ -154,7 +153,9 @@ class Request
   end
 
   module ClientLimit
-    def truncated_body(limit = 1.megabyte)
+    def body_with_limit(limit = 1.megabyte)
+      raise Mastodon::LengthValidationError if content_length.present? && content_length > limit
+
       if charset.nil?
         encoding = Encoding::BINARY
       else
@@ -171,17 +172,8 @@ class Request
         contents << chunk
         chunk.clear
 
-        break if contents.bytesize > limit
+        raise Mastodon::LengthValidationError if contents.bytesize > limit
       end
-
-      contents
-    end
-
-    def body_with_limit(limit = 1.megabyte)
-      raise Mastodon::LengthValidationError if content_length.present? && content_length > limit
-
-      contents = truncated_body(limit)
-      raise Mastodon::LengthValidationError if contents.bytesize > limit
 
       contents
     end
@@ -216,24 +208,26 @@ class Request
         addr_by_socket = {}
 
         addresses.each do |address|
-          check_private_address(address, host)
+          begin
+            check_private_address(address, host)
 
-          sock     = ::Socket.new(address.is_a?(Resolv::IPv6) ? ::Socket::AF_INET6 : ::Socket::AF_INET, ::Socket::SOCK_STREAM, 0)
-          sockaddr = ::Socket.pack_sockaddr_in(port, address.to_s)
+            sock     = ::Socket.new(address.is_a?(Resolv::IPv6) ? ::Socket::AF_INET6 : ::Socket::AF_INET, ::Socket::SOCK_STREAM, 0)
+            sockaddr = ::Socket.pack_sockaddr_in(port, address.to_s)
 
-          sock.setsockopt(::Socket::IPPROTO_TCP, ::Socket::TCP_NODELAY, 1)
+            sock.setsockopt(::Socket::IPPROTO_TCP, ::Socket::TCP_NODELAY, 1)
 
-          sock.connect_nonblock(sockaddr)
+            sock.connect_nonblock(sockaddr)
 
-          # If that hasn't raised an exception, we somehow managed to connect
-          # immediately, close pending sockets and return immediately
-          socks.each(&:close)
-          return sock
-        rescue IO::WaitWritable
-          socks << sock
-          addr_by_socket[sock] = sockaddr
-        rescue => e
-          outer_e = e
+            # If that hasn't raised an exception, we somehow managed to connect
+            # immediately, close pending sockets and return immediately
+            socks.each(&:close)
+            return sock
+          rescue IO::WaitWritable
+            socks << sock
+            addr_by_socket[sock] = sockaddr
+          rescue => e
+            outer_e = e
+          end
         end
 
         until socks.empty?
@@ -278,7 +272,9 @@ class Request
       end
 
       def private_address_exceptions
-        @private_address_exceptions = (ENV['ALLOWED_PRIVATE_ADDRESSES'] || '').split(',').map { |addr| IPAddr.new(addr) }
+        @private_address_exceptions = begin
+          (ENV['ALLOWED_PRIVATE_ADDRESSES'] || '').split(',').map { |addr| IPAddr.new(addr) }
+        end
       end
     end
   end

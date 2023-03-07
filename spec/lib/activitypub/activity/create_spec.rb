@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 require 'rails_helper'
 
 RSpec.describe ActivityPub::Activity::Create do
@@ -53,7 +51,7 @@ RSpec.describe ActivityPub::Activity::Create do
           status = sender.statuses.first
 
           expect(status).to_not be_nil
-          expect(status.edited?).to be true
+          expect(status.edited?).to eq true
         end
       end
 
@@ -79,7 +77,7 @@ RSpec.describe ActivityPub::Activity::Create do
           status = sender.statuses.first
 
           expect(status).to_not be_nil
-          expect(status.edited?).to be false
+          expect(status.edited?).to eq false
         end
       end
 
@@ -254,10 +252,10 @@ RSpec.describe ActivityPub::Activity::Create do
             type: 'Note',
             content: 'Lorem ipsum',
             to: {
-              type: 'OrderedCollection',
-              id: 'http://example.com/followers',
-              first: 'http://example.com/followers?page=true',
-            },
+              'type': 'OrderedCollection',
+              'id': 'http://example.com/followers',
+              'first': 'http://example.com/followers?page=true',
+            }
           }
         end
 
@@ -409,6 +407,7 @@ RSpec.describe ActivityPub::Activity::Create do
           expect(status.media_attachments.map(&:remote_url)).to include('http://example.com/attachment.png')
         end
       end
+
 
       context 'with media attachments with long description' do
         let(:object_json) do
@@ -688,7 +687,7 @@ RSpec.describe ActivityPub::Activity::Create do
                 replies: {
                   type: 'Collection',
                   totalItems: 3,
-                },
+                }
               },
             ],
           }
@@ -718,7 +717,7 @@ RSpec.describe ActivityPub::Activity::Create do
             id: [ActivityPub::TagManager.instance.uri_for(sender), '#bar'].join,
             type: 'Note',
             name: 'Yellow',
-            inReplyTo: ActivityPub::TagManager.instance.uri_for(local_status),
+            inReplyTo: ActivityPub::TagManager.instance.uri_for(local_status)
           }
         end
 
@@ -743,7 +742,7 @@ RSpec.describe ActivityPub::Activity::Create do
             id: [ActivityPub::TagManager.instance.uri_for(sender), '#bar'].join,
             type: 'Note',
             name: 'Yellow',
-            inReplyTo: ActivityPub::TagManager.instance.uri_for(local_status),
+            inReplyTo: ActivityPub::TagManager.instance.uri_for(local_status)
           }
         end
 
@@ -754,9 +753,11 @@ RSpec.describe ActivityPub::Activity::Create do
     end
 
     context 'with an encrypted message' do
+      let(:recipient) { Fabricate(:account) }
+      let(:target_device) { Fabricate(:device, account: recipient) }
+
       subject { described_class.new(json, sender, delivery: true, delivered_to_account_id: recipient.id) }
 
-      let(:recipient) { Fabricate(:account) }
       let(:object_json) do
         {
           id: [ActivityPub::TagManager.instance.uri_for(sender), '#bar'].join,
@@ -778,7 +779,6 @@ RSpec.describe ActivityPub::Activity::Create do
           },
         }
       end
-      let(:target_device) { Fabricate(:device, account: recipient) }
 
       before do
         subject.perform
@@ -833,9 +833,14 @@ RSpec.describe ActivityPub::Activity::Create do
     end
 
     context 'when sender replies to local status' do
+      let!(:local_status) { Fabricate(:status) }
+
       subject { described_class.new(json, sender, delivery: true) }
 
-      let!(:local_status) { Fabricate(:status) }
+      before do
+        subject.perform
+      end
+
       let(:object_json) do
         {
           id: [ActivityPub::TagManager.instance.uri_for(sender), '#bar'].join,
@@ -843,10 +848,6 @@ RSpec.describe ActivityPub::Activity::Create do
           content: 'Lorem ipsum',
           inReplyTo: ActivityPub::TagManager.instance.uri_for(local_status),
         }
-      end
-
-      before do
-        subject.perform
       end
 
       it 'creates status' do
@@ -858,9 +859,14 @@ RSpec.describe ActivityPub::Activity::Create do
     end
 
     context 'when sender targets a local user' do
+      let!(:local_account) { Fabricate(:account) }
+
       subject { described_class.new(json, sender, delivery: true) }
 
-      let!(:local_account) { Fabricate(:account) }
+      before do
+        subject.perform
+      end
+
       let(:object_json) do
         {
           id: [ActivityPub::TagManager.instance.uri_for(sender), '#bar'].join,
@@ -868,10 +874,6 @@ RSpec.describe ActivityPub::Activity::Create do
           content: 'Lorem ipsum',
           to: ActivityPub::TagManager.instance.uri_for(local_account),
         }
-      end
-
-      before do
-        subject.perform
       end
 
       it 'creates status' do
@@ -883,9 +885,14 @@ RSpec.describe ActivityPub::Activity::Create do
     end
 
     context 'when sender cc\'s a local user' do
+      let!(:local_account) { Fabricate(:account) }
+
       subject { described_class.new(json, sender, delivery: true) }
 
-      let!(:local_account) { Fabricate(:account) }
+      before do
+        subject.perform
+      end
+
       let(:object_json) do
         {
           id: [ActivityPub::TagManager.instance.uri_for(sender), '#bar'].join,
@@ -893,10 +900,6 @@ RSpec.describe ActivityPub::Activity::Create do
           content: 'Lorem ipsum',
           cc: ActivityPub::TagManager.instance.uri_for(local_account),
         }
-      end
-
-      before do
-        subject.perform
       end
 
       it 'creates status' do

@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 require 'rails_helper'
 
 RSpec.describe Api::V1::TagsController, type: :controller do
@@ -35,11 +33,7 @@ RSpec.describe Api::V1::TagsController, type: :controller do
   end
 
   describe 'POST #follow' do
-    let!(:unrelated_tag) { Fabricate(:tag) }
-
     before do
-      TagFollow.create!(account: user.account, tag: unrelated_tag)
-
       post :follow, params: { id: name }
     end
 

@@ -1,8 +1,8 @@
-# frozen_string_literal: true
-
 RSpec::Matchers.define :model_have_error_on_field do |expected|
   match do |record|
-    record.valid? if record.errors.empty?
+    if record.errors.empty?
+      record.valid?
+    end
 
     record.errors.has_key?(expected)
   end

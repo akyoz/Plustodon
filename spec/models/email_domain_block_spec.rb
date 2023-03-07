@@ -1,8 +1,13 @@
-# frozen_string_literal: true
-
 require 'rails_helper'
 
 RSpec.describe EmailDomainBlock, type: :model do
+  describe 'validations' do
+    it 'has a valid fabricator' do
+      email_domain_block = Fabricate.build(:email_domain_block)
+      expect(email_domain_block).to be_valid
+    end
+  end
+
   describe 'block?' do
     let(:input) { nil }
 

@@ -44,13 +44,11 @@ class VoteService < BaseService
 
   def distribute_poll!
     return if @poll.hide_totals?
-
     ActivityPub::DistributePollUpdateWorker.perform_in(3.minutes, @poll.status.id)
   end
 
   def queue_final_poll_check!
     return unless @poll.expires?
-
     PollExpirationNotifyWorker.perform_at(@poll.expires_at + 5.minutes, @poll.id)
   end
 

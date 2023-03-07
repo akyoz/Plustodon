@@ -20,7 +20,7 @@ describe RegenerationWorker do
     it 'fails when account does not exist' do
       result = subject.perform('aaa')
 
-      expect(result).to be(true)
+      expect(result).to eq(true)
     end
   end
 end

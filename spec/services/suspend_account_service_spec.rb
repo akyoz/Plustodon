@@ -1,13 +1,11 @@
-# frozen_string_literal: true
-
 require 'rails_helper'
 
 RSpec.describe SuspendAccountService, type: :service do
   shared_examples 'common behavior' do
-    subject { described_class.new.call(account) }
-
     let!(:local_follower) { Fabricate(:user, current_sign_in_at: 1.hour.ago).account }
     let!(:list)           { Fabricate(:list, account: local_follower) }
+
+    subject { described_class.new.call(account) }
 
     before do
       allow(FeedManager.instance).to receive(:unmerge_from_home).and_return(nil)
@@ -15,8 +13,6 @@ RSpec.describe SuspendAccountService, type: :service do
 
       local_follower.follow!(account)
       list.accounts << account
-
-      account.suspend!
     end
 
     it "unmerges from local followers' feeds" do
@@ -25,8 +21,8 @@ RSpec.describe SuspendAccountService, type: :service do
       expect(FeedManager.instance).to have_received(:unmerge_from_list).with(account, list)
     end
 
-    it 'does not change the “suspended” flag' do
-      expect { subject }.to_not change { account.suspended? }
+    it 'marks account as suspended' do
+      expect { subject }.to change { account.suspended? }.from(false).to(true)
     end
   end
 

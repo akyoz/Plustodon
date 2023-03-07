@@ -21,7 +21,7 @@ module Admin
       account_action.save!
 
       if account_action.with_report?
-        redirect_to admin_reports_path, notice: I18n.t('admin.reports.processed_msg', id: params[:report_id])
+        redirect_to admin_reports_path
       else
         redirect_to admin_account_path(@account.id)
       end

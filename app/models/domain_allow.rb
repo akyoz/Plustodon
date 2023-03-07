@@ -28,10 +28,6 @@ class DomainAllow < ApplicationRecord
       !rule_for(domain).nil?
     end
 
-    def allowed_domains
-      select(:domain)
-    end
-
     def rule_for(domain)
       return if domain.blank?
 

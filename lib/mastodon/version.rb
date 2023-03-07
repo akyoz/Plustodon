@@ -9,11 +9,11 @@ module Mastodon
     end
 
     def minor
-      1
+      0
     end
 
     def patch
-      0
+      2
     end
 
     def flags

@@ -6,8 +6,7 @@ class Admin::StatusBatchAction
   include Authorization
 
   attr_accessor :current_account, :type,
-                :status_ids, :report_id,
-                :text
+                :status_ids, :report_id
 
   attr_reader :send_email_notification
 
@@ -58,8 +57,7 @@ class Admin::StatusBatchAction
         action: :delete_statuses,
         account: current_account,
         report: report,
-        status_ids: status_ids,
-        text: text
+        status_ids: status_ids
       )
 
       statuses.each { |status| Tombstone.find_or_create_by(uri: status.uri, account: status.account, by_moderator: true) } unless target_account.local?
@@ -75,7 +73,7 @@ class Admin::StatusBatchAction
     # Can't use a transaction here because UpdateStatusService queues
     # Sidekiq jobs
     statuses.includes(:media_attachments, :preview_cards).find_each do |status|
-      next if status.discarded? || !(status.with_media? || status.with_preview_card?)
+      next unless status.with_media? || status.with_preview_card?
 
       authorize([:admin, status], :update?)
 
@@ -91,15 +89,14 @@ class Admin::StatusBatchAction
         report.resolve!(current_account)
         log_action(:resolve, report)
       end
-    end
 
-    @warning = target_account.strikes.create!(
-      action: :mark_statuses_as_sensitive,
-      account: current_account,
-      report: report,
-      status_ids: status_ids,
-      text: text
-    )
+      @warning = target_account.strikes.create!(
+        action: :mark_statuses_as_sensitive,
+        account: current_account,
+        report: report,
+        status_ids: status_ids
+      )
+    end
 
     UserMailer.warning(target_account.user, @warning).deliver_later! if warnable?
   end

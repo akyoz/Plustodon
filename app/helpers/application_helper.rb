@@ -67,7 +67,7 @@ module ApplicationHelper
   def link_to_login(name = nil, html_options = nil, &block)
     target = new_user_session_path
 
-    html_options = name if block
+    html_options = name if block_given?
 
     if omniauth_only? && Devise.mappings[:user].omniauthable? && User.omniauth_providers.size == 1
       target = omniauth_authorize_path(:user, User.omniauth_providers[0])
@@ -75,7 +75,7 @@ module ApplicationHelper
       html_options[:method] = :post
     end
 
-    if block
+    if block_given?
       link_to(target, html_options, &block)
     else
       link_to(name, target, html_options)
@@ -105,7 +105,6 @@ module ApplicationHelper
 
   def can?(action, record)
     return false if record.nil?
-
     policy(record).public_send("#{action}?")
   end
 
@@ -217,7 +216,9 @@ module ApplicationHelper
       state_params[:moved_to_account] = current_account.moved_to_account
     end
 
-    state_params[:owner] = Account.local.without_suspended.where('id > 0').first if single_user_mode?
+    if single_user_mode?
+      state_params[:owner] = Account.local.without_suspended.where('id > 0').first
+    end
 
     json = ActiveModelSerializers::SerializableResource.new(InitialStatePresenter.new(state_params), serializer: InitialStateSerializer).to_json
     # rubocop:disable Rails/OutputSafety

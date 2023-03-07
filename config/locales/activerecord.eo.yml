@@ -4,9 +4,9 @@ eo:
     attributes:
       poll:
         expires_at: Limdato
-        options: Elektebloj
+        options: Elektoj
       user:
-        agreement: Interkonsento pri servoj
+        agreement: Servo-interkonsento
         email: Retpoŝtadreso
         locale: Lokaĵaro
         password: Pasvorto
@@ -19,7 +19,7 @@ eo:
         account:
           attributes:
             username:
-              invalid: nur literoj, ciferoj kaj substrekoj
+              invalid: nur leteroj, ciferoj kaj substrekoj
               reserved: rezervita
         admin/webhook:
           attributes:
@@ -41,7 +41,7 @@ eo:
           attributes:
             email:
               blocked: uzas nepermesitan retpoŝtan provizanton
-              unreachable: ŝajne ne ekzistas
+              unreachable: ne ŝajnas ekzisti
             role_id:
               elevated: ne povas esti pli altranga ol via aktuala rolo
         user_role:

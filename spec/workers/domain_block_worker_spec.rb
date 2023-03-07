@@ -20,7 +20,7 @@ describe DomainBlockWorker do
     it 'returns true for non-existent domain block' do
       result = subject.perform('aaa')
 
-      expect(result).to be(true)
+      expect(result).to eq(true)
     end
   end
 end

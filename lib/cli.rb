@@ -121,7 +121,7 @@ module Mastodon
 
       prompt.warn('Do NOT interrupt this process...')
 
-      delete_account = lambda do |account|
+      delete_account = ->(account) do
         payload = ActiveModelSerializers::SerializableResource.new(
           account,
           serializer: ActivityPub::DeleteActorSerializer,

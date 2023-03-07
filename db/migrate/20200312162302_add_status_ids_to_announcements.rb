@@ -3,3 +3,4 @@ class AddStatusIdsToAnnouncements < ActiveRecord::Migration[5.2]
     add_column :announcements, :status_ids, :bigint, array: true
   end
 end
+

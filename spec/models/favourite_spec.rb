@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 require 'rails_helper'
 
 RSpec.describe Favourite, type: :model do
@@ -11,7 +9,7 @@ RSpec.describe Favourite, type: :model do
 
     it 'invalidates if the reblogged status is already a favourite' do
       Favourite.create!(account: account, status: reblog)
-      expect(Favourite.new(account: account, status: status).valid?).to be false
+      expect(Favourite.new(account: account, status: status).valid?).to eq false
     end
 
     it 'replaces status with the reblogged one if it is a reblog' do

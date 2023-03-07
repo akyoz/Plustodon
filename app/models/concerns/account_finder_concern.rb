@@ -13,11 +13,9 @@ module AccountFinderConcern
     end
 
     def representative
-      actor = Account.find(-99).tap(&:ensure_keys!)
-      actor.update!(username: 'mastodon.internal') if actor.username.include?(':')
-      actor
+      Account.find(-99).tap(&:ensure_keys!)
     rescue ActiveRecord::RecordNotFound
-      Account.create!(id: -99, actor_type: 'Application', locked: true, username: 'mastodon.internal')
+      Account.create!(id: -99, actor_type: 'Application', locked: true, username: Rails.configuration.x.local_domain)
     end
 
     def find_local(username)

@@ -30,7 +30,9 @@ class Auth::RegistrationsController < Devise::RegistrationsController
 
   def update
     super do |resource|
-      resource.clear_other_sessions(current_session.session_id) if resource.saved_change_to_encrypted_password?
+      if resource.saved_change_to_encrypted_password?
+        resource.clear_other_sessions(current_session.session_id)
+      end
     end
   end
 
@@ -54,8 +56,8 @@ class Auth::RegistrationsController < Devise::RegistrationsController
   end
 
   def configure_sign_up_params
-    devise_parameter_sanitizer.permit(:sign_up) do |user_params|
-      user_params.permit({ account_attributes: [:username, :display_name], invite_request_attributes: [:text] }, :email, :password, :password_confirmation, :invite_code, :agreement, :website, :confirm_password)
+    devise_parameter_sanitizer.permit(:sign_up) do |u|
+      u.permit({ account_attributes: [:username, :display_name], invite_request_attributes: [:text] }, :email, :password, :password_confirmation, :invite_code, :agreement, :website, :confirm_password)
     end
   end
 
@@ -152,6 +154,6 @@ class Auth::RegistrationsController < Devise::RegistrationsController
   end
 
   def set_cache_headers
-    response.headers['Cache-Control'] = 'private, no-store'
+    response.headers['Cache-Control'] = 'no-cache, no-store, max-age=0, must-revalidate'
   end
 end

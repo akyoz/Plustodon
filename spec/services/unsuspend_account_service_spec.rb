@@ -1,13 +1,11 @@
-# frozen_string_literal: true
-
 require 'rails_helper'
 
 RSpec.describe UnsuspendAccountService, type: :service do
   shared_examples 'common behavior' do
-    subject { described_class.new.call(account) }
-
     let!(:local_follower) { Fabricate(:user, current_sign_in_at: 1.hour.ago).account }
     let!(:list)           { Fabricate(:list, account: local_follower) }
+
+    subject { described_class.new.call(account) }
 
     before do
       allow(FeedManager.instance).to receive(:merge_into_home).and_return(nil)
@@ -16,7 +14,7 @@ RSpec.describe UnsuspendAccountService, type: :service do
       local_follower.follow!(account)
       list.accounts << account
 
-      account.unsuspend!
+      account.suspend!(origin: :local)
     end
   end
 
@@ -32,8 +30,8 @@ RSpec.describe UnsuspendAccountService, type: :service do
       stub_request(:post, 'https://bob.com/inbox').to_return(status: 201)
     end
 
-    it 'does not change the “suspended” flag' do
-      expect { subject }.to_not change { account.suspended? }
+    it 'marks account as unsuspended' do
+      expect { subject }.to change { account.suspended? }.from(true).to(false)
     end
 
     include_examples 'common behavior' do
@@ -85,8 +83,8 @@ RSpec.describe UnsuspendAccountService, type: :service do
           expect(FeedManager.instance).to have_received(:merge_into_list).with(account, list)
         end
 
-        it 'does not change the “suspended” flag' do
-          expect { subject }.to_not change { account.suspended? }
+        it 'marks account as unsuspended' do
+          expect { subject }.to change { account.suspended? }.from(true).to(false)
         end
       end
 
@@ -109,8 +107,8 @@ RSpec.describe UnsuspendAccountService, type: :service do
           expect(FeedManager.instance).to_not have_received(:merge_into_list).with(account, list)
         end
 
-        it 'marks account as suspended' do
-          expect { subject }.to change { account.suspended? }.from(false).to(true)
+        it 'does not mark the account as unsuspended' do
+          expect { subject }.not_to change { account.suspended? }
         end
       end
 

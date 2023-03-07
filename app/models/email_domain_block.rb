@@ -1,5 +1,4 @@
 # frozen_string_literal: true
-
 # == Schema Information
 #
 # Table name: email_domain_blocks
@@ -70,11 +69,13 @@ class EmailDomainBlock < ApplicationRecord
 
     def extract_uris(domain_or_domains)
       Array(domain_or_domains).map do |str|
-        domain = if str.include?('@')
-                   str.split('@', 2).last
-                 else
-                   str
-                 end
+        domain = begin
+          if str.include?('@')
+            str.split('@', 2).last
+          else
+            str
+          end
+        end
 
         Addressable::URI.new.tap { |u| u.host = domain.strip } if domain.present?
       rescue Addressable::URI::InvalidURIError, IDN::Idna::IdnaError

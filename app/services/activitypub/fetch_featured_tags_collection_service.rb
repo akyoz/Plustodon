@@ -22,12 +22,14 @@ class ActivityPub::FetchFeaturedTagsCollectionService < BaseService
     collection = fetch_collection(collection['first']) if collection['first'].present?
 
     while collection.is_a?(Hash)
-      items = case collection['type']
-              when 'Collection', 'CollectionPage'
-                collection['items']
-              when 'OrderedCollection', 'OrderedCollectionPage'
-                collection['orderedItems']
-              end
+      items = begin
+        case collection['type']
+        when 'Collection', 'CollectionPage'
+          collection['items']
+        when 'OrderedCollection', 'OrderedCollectionPage'
+          collection['orderedItems']
+        end
+      end
 
       break if items.blank?
 

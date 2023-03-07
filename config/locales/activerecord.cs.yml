@@ -11,9 +11,9 @@ cs:
         locale: Lokalizace
         password: Heslo
       user/account:
-        username: Uživatelské jméno
+        username: Uživatel
       user/invite_request:
-        text: Důvod
+        text: Zdůvodnění
     errors:
       models:
         account:

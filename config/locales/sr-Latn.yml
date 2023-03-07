@@ -52,7 +52,6 @@ sr-Latn:
       protocol: Protokol
       public: Javno
       redownload: Osveži avatar
-      remote_suspension_reversible_hint_html: Налог је суспендован на њиховом серверу, а подаци ће бити у потпуности уклоњени %{date}. До тада, удаљени сервер може вратити овај налог без икаквих негативних ефеката. Ако желите одмах да уклоните све податке налога, то можете учинити у наставку.
       resend_confirmation:
         already_confirmed: Ovaj korisnik je već potvrđen
         send: Ponovo pošaljite e-poruku za potvrdu
@@ -109,7 +108,9 @@ sr-Latn:
         create: Napravi blokadu
         hint: Blokiranje domena neće sprečiti pravljenje naloga u bazi, ali će retroaktivno i automatski primeniti određene moderatorske metode nad tim nalozima.
         severity:
+          desc_html: "<strong>Ućutkavanje</strong> će sve statuse ovog naloga učiniti nevidiljivim za sve, osim za one koji nalog već prate. <strong>Suspenzija</strong> će ukloniti sav sadržaj naloga, svu multimediju, i profilne podatke. Koristite <strong>Ništa</strong> ako samo želite da odbacite multimedijalne fajlove."
           noop: Ništa
+          silence: Ućutkavanje
           suspend: Suspenzija
         title: Novo blokiranje domena
       reject_media: Odbaci multimediju
@@ -209,6 +210,7 @@ sr-Latn:
     '404': Strana koju ste tražili ne postoji.
     '406': This page is not available in the requested format.
     '410': Strana koju ste tražili više ne postoji.
+    '422': 
     '429': Uspored
     '500':
       content: Izvinjavamo se, nešto je pošlo po zlu sa ove strane.
@@ -256,6 +258,9 @@ sr-Latn:
       expires_at: Ističe
       uses: Korišćenja
     title: Pozovi ljude
+  lists:
+    errors:
+      limit: Dostigli ste limit broja listi
   media_attachments:
     validations:
       images_and_video: Ne može da se prikači video na status koji već ima slike
@@ -283,6 +288,8 @@ sr-Latn:
   pagination:
     next: Sledeći
     prev: Prethodni
+  preferences:
+    other: Ostali
   remote_follow:
     missing_resource: Ne mogu da nađem zahtevanu adresu preusmeravanja za Vaš nalog
   sessions:

@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 require 'rails_helper'
 
 RSpec.describe WebauthnCredential, type: :model do
@@ -37,8 +35,8 @@ RSpec.describe WebauthnCredential, type: :model do
     end
 
     it 'is invalid if already exist a webauthn credential with the same external id' do
-      existing_webauthn_credential = Fabricate(:webauthn_credential, external_id: '_Typ0ygudDnk9YUVWLQayw')
-      new_webauthn_credential = Fabricate.build(:webauthn_credential, external_id: '_Typ0ygudDnk9YUVWLQayw')
+      existing_webauthn_credential = Fabricate(:webauthn_credential, external_id: "_Typ0ygudDnk9YUVWLQayw")
+      new_webauthn_credential = Fabricate.build(:webauthn_credential, external_id: "_Typ0ygudDnk9YUVWLQayw")
 
       new_webauthn_credential.valid?
 

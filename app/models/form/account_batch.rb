@@ -17,8 +17,8 @@ class Form::AccountBatch
       unfollow!
     when 'remove_from_followers'
       remove_from_followers!
-    when 'remove_domains_from_followers'
-      remove_domains_from_followers!
+    when 'block_domains'
+      block_domains!
     when 'approve'
       approve!
     when 'reject'
@@ -35,15 +35,9 @@ class Form::AccountBatch
   private
 
   def follow!
-    error = nil
-
     accounts.each do |target_account|
       FollowService.new.call(current_account, target_account)
-    rescue Mastodon::NotPermittedError, ActiveRecord::RecordNotFound => e
-      error ||= e
     end
-
-    raise error if error.present?
   end
 
   def unfollow!
@@ -56,8 +50,10 @@ class Form::AccountBatch
     RemoveFromFollowersService.new.call(current_account, account_ids)
   end
 
-  def remove_domains_from_followers!
-    RemoveDomainsFromFollowersService.new.call(current_account, account_domains)
+  def block_domains!
+    AfterAccountDomainBlockWorker.push_bulk(account_domains) do |domain|
+      [current_account.id, domain]
+    end
   end
 
   def account_domains
@@ -119,10 +115,6 @@ class Form::AccountBatch
     authorize(account, :suspend?)
     log_action(:suspend, account)
     account.suspend!(origin: :local)
-    account.strikes.create!(
-      account: current_account,
-      action: :suspend
-    )
     Admin::SuspensionWorker.perform_async(account.id)
   end
 

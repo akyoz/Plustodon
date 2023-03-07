@@ -1,28 +1,24 @@
 // @ts-check
 
-(function () {
+(function() {
   'use strict';
 
   /**
    * @param {() => void} loaded
    */
-  var ready = function (loaded) {
-    if (document.readyState === 'complete') {
+  var ready = function(loaded) {
+    if (['interactive', 'complete'].indexOf(document.readyState) !== -1) {
       loaded();
     } else {
-      document.addEventListener('readystatechange', function () {
-        if (document.readyState === 'complete') {
-          loaded();
-        }
-      });
+      document.addEventListener('DOMContentLoaded', loaded);
     }
   };
 
-  ready(function () {
+  ready(function() {
     /** @type {Map<number, HTMLIFrameElement>} */
     var iframes = new Map();
 
-    window.addEventListener('message', function (e) {
+    window.addEventListener('message', function(e) {
       var data = e.data || {};
 
       if (typeof data !== 'object' || data.type !== 'setHeight' || !iframes.has(data.id)) {
@@ -38,7 +34,7 @@
       iframe.height = data.height;
     });
 
-    [].forEach.call(document.querySelectorAll('iframe.mastodon-embed'), function (iframe) {
+    [].forEach.call(document.querySelectorAll('iframe.mastodon-embed'), function(iframe) {
       // select unique id for each iframe
       var id = 0, failCount = 0, idBuffer = new Uint32Array(1);
       while (id === 0 || iframes.has(id)) {
@@ -53,10 +49,10 @@
 
       iframes.set(id, iframe);
 
-      iframe.scrolling = 'no';
+      iframe.scrolling      = 'no';
       iframe.style.overflow = 'hidden';
 
-      iframe.onload = function () {
+      iframe.onload = function() {
         iframe.contentWindow.postMessage({
           type: 'setHeight',
           id: id,

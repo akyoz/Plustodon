@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 require 'rails_helper'
 
 describe Api::V1::Apps::CredentialsController do
@@ -32,13 +30,13 @@ describe Api::V1::Apps::CredentialsController do
 
   context 'without an oauth token' do
     before do
-      allow(controller).to receive(:doorkeeper_token).and_return(nil)
+      allow(controller).to receive(:doorkeeper_token) { nil }
     end
 
     describe 'GET #show' do
       it 'returns http unauthorized' do
         get :show
-        expect(response).to have_http_status(401)
+        expect(response).to have_http_status(:unauthorized)
       end
     end
   end

@@ -6,12 +6,13 @@ import DropdownMenu from '../components/dropdown_menu';
 import { isUserTouching } from '../is_mobile';
 
 const mapStateToProps = state => ({
+  dropdownPlacement: state.getIn(['dropdown_menu', 'placement']),
   openDropdownId: state.getIn(['dropdown_menu', 'openId']),
   openedViaKeyboard: state.getIn(['dropdown_menu', 'keyboard']),
 });
 
 const mapDispatchToProps = (dispatch, { status, items, scrollKey }) => ({
-  onOpen(id, onItemClick, keyboard) {
+  onOpen(id, onItemClick, dropdownPlacement, keyboard) {
     if (status) {
       dispatch(fetchRelationships([status.getIn(['account', 'id'])]));
     }
@@ -20,7 +21,7 @@ const mapDispatchToProps = (dispatch, { status, items, scrollKey }) => ({
       status,
       actions: items,
       onClick: onItemClick,
-    }) : openDropdownMenu(id, keyboard, scrollKey));
+    }) : openDropdownMenu(id, dropdownPlacement, keyboard, scrollKey));
   },
 
   onClose(id) {

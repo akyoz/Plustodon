@@ -1,10 +1,7 @@
 import { connect } from 'react-redux';
 import PollForm from '../components/poll_form';
+import { addPollOption, removePollOption, changePollOption, changePollSettings } from '../../../actions/compose';
 import {
-  addPollOption,
-  removePollOption,
-  changePollOption,
-  changePollSettings,
   clearComposeSuggestions,
   fetchComposeSuggestions,
   selectComposeSuggestion,
@@ -13,7 +10,6 @@ import {
 const mapStateToProps = state => ({
   suggestions: state.getIn(['compose', 'suggestions']),
   options: state.getIn(['compose', 'poll', 'options']),
-  lang: state.getIn(['compose', 'language']),
   expiresIn: state.getIn(['compose', 'poll', 'expires_in']),
   isMultiple: state.getIn(['compose', 'poll', 'multiple']),
 });

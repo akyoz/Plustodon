@@ -54,7 +54,7 @@ class AccountSuggestions::SettingSource < AccountSuggestions::Source
 
       next if username.blank?
 
-      [username.downcase, domain&.downcase]
+      [username, domain]
     end.compact
   end
 
@@ -63,6 +63,6 @@ class AccountSuggestions::SettingSource < AccountSuggestions::Source
   end
 
   def to_ordered_list_key(account)
-    [account.username.downcase, account.domain&.downcase]
+    [account.username, account.domain]
   end
 end

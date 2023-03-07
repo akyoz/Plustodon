@@ -1,7 +1,4 @@
-# frozen_string_literal: true
-
 Fabricator(:account_moderation_note) do
-  content 'MyText'
-  account
-  target_account { Fabricate(:account) }
+  content "MyText"
+  account nil
 end

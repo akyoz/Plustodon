@@ -79,11 +79,13 @@ module Mastodon
       skipped   = 0
 
       addresses.each do |address|
-        ip_blocks = if options[:force]
-                      IpBlock.where('ip >>= ?', address)
-                    else
-                      IpBlock.where('ip <<= ?', address)
-                    end
+        ip_blocks = begin
+          if options[:force]
+            IpBlock.where('ip >>= ?', address)
+          else
+            IpBlock.where('ip <<= ?', address)
+          end
+        end
 
         if ip_blocks.empty?
           say("#{address} is not yet blocked", :yellow)
