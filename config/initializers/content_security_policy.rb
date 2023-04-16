@@ -23,7 +23,6 @@ Rails.application.config.content_security_policy do |p|
   p.font_src        :self, assets_host
   p.img_src         :self, :https, :data, :blob, assets_host
   p.style_src       :self, assets_host, "https://34.si/402/"
-
   p.media_src       :self, :https, :data, assets_host
   p.frame_src       :self, :https
   p.manifest_src    :self, assets_host
@@ -57,7 +56,6 @@ Rails.application.reloader.to_prepare do
   PgHero::HomeController.content_security_policy do |p|
     p.script_src :self, :unsafe_inline, assets_host, "https://www.google.com/recaptcha/" , "https://www.gstatic.com/recaptcha/" , "https://www.googletagmanager.com/gtag/" , "https://www.google-analytics.com/" , "https://static.cloudflareinsights.com/" , "https://stats.g.doubleclick.net"
     p.style_src  :self, :unsafe_inline, assets_host, "https://34.si/402/"
-
   end
 
   PgHero::HomeController.after_action do
@@ -72,7 +70,6 @@ Rails.application.reloader.to_prepare do
       p.frame_src       :self
       p.script_src      :unsafe_inline, "https://www.google.com/recaptcha/" , "https://www.gstatic.com/recaptcha/" , "https://www.googletagmanager.com/gtag/" , "https://www.google-analytics.com/" , "https://static.cloudflareinsights.com/" , "https://stats.g.doubleclick.net"
       p.style_src       :unsafe_inline, "https://34.si/402/"
-
       p.worker_src      :none
     end
 
