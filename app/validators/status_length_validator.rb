@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class StatusLengthValidator < ActiveModel::Validator
-  MAX_CHARS = 16384
+  MAX_CHARS = 16_384
   URL_PLACEHOLDER_CHARS = 23
   URL_PLACEHOLDER = 'x' * 23
 
@@ -32,7 +32,8 @@ class StatusLengthValidator < ActiveModel::Validator
     # will be correctly parsed during formatting, we go through full
     # entity extraction
 
-    entities = Extractor.remove_overlapping_entities(Extractor.extract_urls_with_indices(str, extract_url_without_protocol: false) + Extractor.extract_mentions_or_lists_with_indices(str))
+    entities = Extractor.remove_overlapping_entities(Extractor.extract_urls_with_indices(str, extract_url_without_protocol: false) +
+                Extractor.extract_mentions_or_lists_with_indices(str))
 
     rewrite_entities(str, entities) do |entity|
       if entity[:url]
