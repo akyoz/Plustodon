@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 class StatusesIndex < Chewy::Index
+  include FormattingHelper
   settings index: { refresh_interval: '15m' }, analysis: {
     tokenizer: {
       sudachi_tokenizer: {
@@ -8,7 +9,7 @@ class StatusesIndex < Chewy::Index
         mode: 'search',
         discard_punctuation: true,
         resources_path: '/etc/elasticsearch',
-        settings_path: '/etc/elasticsearch/sudachi.json', 
+        settings_path: '/etc/elasticsearch/sudachi/sudachi.json', 
       },
     },
     analyzer: {
