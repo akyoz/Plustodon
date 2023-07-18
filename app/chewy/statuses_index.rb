@@ -2,23 +2,27 @@
 
 class StatusesIndex < Chewy::Index
   include FormattingHelper
-
   settings index: { refresh_interval: '15m' }, analysis: {
     tokenizer: {
-      kuromoji_user_dict: {
-        type: 'kuromoji_tokenizer',
+      sudachi_tokenizer: {
+        type: 'sudachi_tokenizer',
+        mode: 'search',
+        discard_punctuation: true,
+        resources_path: '/etc/elasticsearch',
+        settings_path: '/etc/elasticsearch/sudachi/sudachi.json', 
       },
     },
     analyzer: {
       content: {
-        type: 'custom',
-        tokenizer: 'kuromoji_user_dict',
         filter: %w(
-          kuromoji_baseform
-          kuromoji_stemmer
-          cjk_width
           lowercase
+          cjk_width
+          sudachi_part_of_speech
+          sudachi_ja_stop
+          sudachi_baseform
         ),
+        tokenizer: 'sudachi_tokenizer',
+        type: 'custom',
       },
     },
   }
