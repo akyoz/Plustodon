@@ -2,30 +2,49 @@
 
 class StatusesIndex < Chewy::Index
   include FormattingHelper
-  settings index: { refresh_interval: '15m' }, analysis: {
+  settings index: { refresh_interval: '30s' }, analysis: {
     tokenizer: {
       sudachi_tokenizer: {
         type: 'sudachi_tokenizer',
-        mode: 'search',
         discard_punctuation: true,
-        resources_path: '/etc/elasticsearch',
-        settings_path: '/etc/elasticsearch/sudachi/sudachi.json', 
+        resources_path: '/etc/elasticsearch/sudachi',
+        settings_path: '/etc/elasticsearch/sudachi/sudachi.json',
+      },
+    },
+    filter: {
+      english_stop: {
+        type: 'stop',
+        stopwords: '_english_',
+      },
+      english_stemmer: {
+        type: 'stemmer',
+        language: 'english',
+      },
+      english_possessive_stemmer: {
+        type: 'stemmer',
+        language: 'possessive_english',
       },
     },
     analyzer: {
       content: {
+        "char_filter":["icu_normalizer"],
+        "tokenizer": "sudachi_tokenizer",
+        type: "custom",
         filter: %w(
           lowercase
           cjk_width
           sudachi_part_of_speech
           sudachi_ja_stop
           sudachi_baseform
+          english_possessive_stemmer
+          asciifolding
+          english_stop
+          english_stemmer
         ),
-        tokenizer: 'sudachi_tokenizer',
-        type: 'custom',
       },
     },
   }
+
 
   # We do not use delete_if option here because it would call a method that we
   # expect to be called with crutches without crutches, causing n+1 queries
