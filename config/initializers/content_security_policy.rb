@@ -3,7 +3,7 @@
 # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy
 
 def host_to_url(str)
-  "http#{Rails.configuration.x.use_https ? 's' : ''}://#{str}".split('/').first if str.present?
+  "http#{Rails.configuration.x.use_https ? 's' : ''}://#{str.split('/').first}" if str.present?
 end
 
 base_host = Rails.configuration.x.web_domain
@@ -32,12 +32,12 @@ Rails.application.config.content_security_policy do |p|
     webpacker_urls = %w(ws http).map { |protocol| "#{protocol}#{Webpacker.dev_server.https? ? 's' : ''}://#{Webpacker.dev_server.host_with_port}" }
 
     p.connect_src :self, :data, :blob, assets_host, media_host, Rails.configuration.x.streaming_api_base_url, *webpacker_urls
-    p.script_src  :self, :unsafe_inline, :unsafe_eval, assets_host, "https://www.google.com/recaptcha/" , "https://www.gstatic.com/recaptcha/" , "https://www.googletagmanager.com/gtag/" , "https://www.google-analytics.com/" , "https://static.cloudflareinsights.com/" , "https://stats.g.doubleclick.net"
+    p.script_src  :self, :unsafe_inline, :unsafe_eval, assets_host, "https://static.cloudflareinsights.com/", "https://stats.g.doubleclick.net"
     p.child_src   :self, :blob, assets_host
     p.worker_src  :self, :blob, assets_host
   else
     p.connect_src :self, :data, :blob, assets_host, media_host, Rails.configuration.x.streaming_api_base_url
-    p.script_src  :self, assets_host, "'wasm-unsafe-eval'", "https://www.google.com/recaptcha/" , "https://www.gstatic.com/recaptcha/" , "https://www.googletagmanager.com/gtag/" , "https://www.google-analytics.com/" , "https://static.cloudflareinsights.com/" , "https://stats.g.doubleclick.net"
+    p.script_src  :self, assets_host, "'wasm-unsafe-eval'", "https://static.cloudflareinsights.com/", "https://stats.g.doubleclick.net"
     p.child_src   :self, :blob, assets_host
     p.worker_src  :self, :blob, assets_host
   end
@@ -54,7 +54,7 @@ Rails.application.config.content_security_policy_nonce_directives = %w(style-src
 
 Rails.application.reloader.to_prepare do
   PgHero::HomeController.content_security_policy do |p|
-    p.script_src :self, :unsafe_inline, assets_host, "https://www.google.com/recaptcha/" , "https://www.gstatic.com/recaptcha/" , "https://www.googletagmanager.com/gtag/" , "https://www.google-analytics.com/" , "https://static.cloudflareinsights.com/" , "https://stats.g.doubleclick.net"
+    p.script_src :self, :unsafe_inline, assets_host, "https://static.cloudflareinsights.com/", "https://stats.g.doubleclick.net"
     p.style_src  :self, :unsafe_inline, assets_host, "https://34.si/402/"
   end
 
@@ -68,7 +68,7 @@ Rails.application.reloader.to_prepare do
       p.connect_src     :none
       p.frame_ancestors :self
       p.frame_src       :self
-      p.script_src      :unsafe_inline, "https://www.google.com/recaptcha/" , "https://www.gstatic.com/recaptcha/" , "https://www.googletagmanager.com/gtag/" , "https://www.google-analytics.com/" , "https://static.cloudflareinsights.com/" , "https://stats.g.doubleclick.net"
+      p.script_src      :unsafe_inline, "https://static.cloudflareinsights.com/", "https://stats.g.doubleclick.net"
       p.style_src       :unsafe_inline, "https://34.si/402/"
       p.worker_src      :none
     end
