@@ -2,8 +2,6 @@
 
 module Admin
   class EmailDomainBlocksController < BaseController
-    before_action :set_email_domain_block, only: [:show, :destroy]
-
     def index
       authorize :email_domain_block, :index?
 
@@ -40,9 +38,9 @@ module Admin
           log_action :create, @email_domain_block
 
           (@email_domain_block.other_domains || []).uniq.each do |domain|
-            next if EmailDomainBlock.where(domain: domain).exists?
+            next if EmailDomainBlock.exists?(domain: domain)
 
-            other_email_domain_block = EmailDomainBlock.create!(domain: domain, parent: @email_domain_block)
+            other_email_domain_block = EmailDomainBlock.create!(domain: domain, allow_with_approval: @email_domain_block.allow_with_approval, parent: @email_domain_block)
             log_action :create, other_email_domain_block
           end
         end
@@ -59,10 +57,6 @@ module Admin
 
     private
 
-    def set_email_domain_block
-      @email_domain_block = EmailDomainBlock.find(params[:id])
-    end
-
     def set_resolved_records
       Resolv::DNS.open do |dns|
         dns.timeouts = 5
@@ -71,7 +65,7 @@ module Admin
     end
 
     def resource_params
-      params.require(:email_domain_block).permit(:domain, other_domains: [])
+      params.require(:email_domain_block).permit(:domain, :allow_with_approval, other_domains: [])
     end
 
     def form_email_domain_block_batch_params

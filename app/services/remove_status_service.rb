@@ -19,7 +19,7 @@ class RemoveStatusService < BaseService
     @account  = status.account
     @options  = options
 
-    with_lock("distribute:#{@status.id}") do
+    with_redis_lock("distribute:#{@status.id}") do
       @status.discard_with_reblogs
 
       StatusPin.find_by(status: @status)&.destroy
@@ -94,7 +94,7 @@ class RemoveStatusService < BaseService
 
     status_reach_finder = StatusReachFinder.new(@status, unsafe: true)
 
-    ActivityPub::DeliveryWorker.push_bulk(status_reach_finder.inboxes) do |inbox_url|
+    ActivityPub::DeliveryWorker.push_bulk(status_reach_finder.inboxes, limit: 1_000) do |inbox_url|
       [signed_activity_json, @account.id, inbox_url]
     end
   end
@@ -114,7 +114,7 @@ class RemoveStatusService < BaseService
   end
 
   def remove_from_hashtags
-    @account.featured_tags.where(tag_id: @status.tags.map(&:id)).each do |featured_tag|
+    @account.featured_tags.where(tag_id: @status.tags.map(&:id)).find_each do |featured_tag|
       featured_tag.decrement(@status.id)
     end
 

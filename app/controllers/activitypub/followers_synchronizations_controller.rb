@@ -4,9 +4,10 @@ class ActivityPub::FollowersSynchronizationsController < ActivityPub::BaseContro
   include SignatureVerification
   include AccountOwnedConcern
 
+  vary_by -> { 'Signature' if authorized_fetch_mode? }
+
   before_action :require_account_signature!
   before_action :set_items
-  before_action :set_cache_headers
 
   def show
     expires_in 0, public: false
@@ -23,7 +24,7 @@ class ActivityPub::FollowersSynchronizationsController < ActivityPub::BaseContro
   end
 
   def set_items
-    @items = @account.followers.where(Account.arel_table[:uri].matches("#{Account.sanitize_sql_like(uri_prefix)}/%", false, true)).or(@account.followers.where(uri: uri_prefix)).pluck(:uri)
+    @items = @account.followers.matches_uri_prefix(uri_prefix).pluck(:uri)
   end
 
   def collection_presenter

@@ -17,7 +17,7 @@ class Api::V1::BlocksController < Api::BaseController
   end
 
   def paginated_blocks
-    @paginated_blocks ||= Block.eager_load(target_account: :account_stat)
+    @paginated_blocks ||= Block.eager_load(target_account: [:account_stat, :user])
                                .joins(:target_account)
                                .merge(Account.without_suspended)
                                .where(account: current_account)
@@ -33,15 +33,11 @@ class Api::V1::BlocksController < Api::BaseController
   end
 
   def next_path
-    if records_continue?
-      api_v1_blocks_url pagination_params(max_id: pagination_max_id)
-    end
+    api_v1_blocks_url pagination_params(max_id: pagination_max_id) if records_continue?
   end
 
   def prev_path
-    unless paginated_blocks.empty?
-      api_v1_blocks_url pagination_params(since_id: pagination_since_id)
-    end
+    api_v1_blocks_url pagination_params(since_id: pagination_since_id) unless paginated_blocks.empty?
   end
 
   def pagination_max_id

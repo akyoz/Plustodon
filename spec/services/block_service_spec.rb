@@ -1,9 +1,11 @@
+# frozen_string_literal: true
+
 require 'rails_helper'
 
 RSpec.describe BlockService, type: :service do
-  let(:sender) { Fabricate(:account, username: 'alice') }
+  subject { described_class.new }
 
-  subject { BlockService.new }
+  let(:sender) { Fabricate(:account, username: 'alice') }
 
   describe 'local' do
     let(:bob) { Fabricate(:account, username: 'bob') }
@@ -29,7 +31,7 @@ RSpec.describe BlockService, type: :service do
       expect(sender.blocking?(bob)).to be true
     end
 
-    it 'sends a block activity' do
+    it 'sends a block activity', :sidekiq_inline do
       expect(a_request(:post, 'http://example.com/inbox')).to have_been_made.once
     end
   end

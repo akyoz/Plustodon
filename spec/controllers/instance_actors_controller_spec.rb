@@ -1,8 +1,10 @@
+# frozen_string_literal: true
+
 require 'rails_helper'
 
-RSpec.describe InstanceActorsController, type: :controller do
+RSpec.describe InstanceActorsController do
   describe 'GET #show' do
-    context 'as JSON' do
+    context 'with JSON' do
       let(:format) { 'json' }
 
       shared_examples 'shared behavior' do
@@ -10,30 +12,22 @@ RSpec.describe InstanceActorsController, type: :controller do
           get :show, params: { format: format }
         end
 
-        it 'returns http success' do
-          expect(response).to have_http_status(200)
-        end
+        it 'returns http success with correct media type, headers, and session values' do
+          expect(response)
+            .to have_http_status(200)
+            .and have_attributes(
+              media_type: eq('application/activity+json'),
+              cookies: be_empty
+            )
 
-        it 'returns application/activity+json' do
-          expect(response.media_type).to eq 'application/activity+json'
-        end
+          expect(response.headers)
+            .to include('Cache-Control' => include('public'))
+            .and not_include('Set-Cookies')
 
-        it 'does not set cookies' do
-          expect(response.cookies).to be_empty
-          expect(response.headers['Set-Cookies']).to be nil
-        end
-
-        it 'does not set sessions' do
           expect(session).to be_empty
-        end
 
-        it 'returns public Cache-Control header' do
-          expect(response.headers['Cache-Control']).to include 'public'
-        end
-
-        it 'renders account' do
-          json = body_as_json
-          expect(json).to include(:id, :type, :preferredUsername, :inbox, :publicKey, :inbox, :outbox, :url)
+          expect(body_as_json)
+            .to include(:id, :type, :preferredUsername, :inbox, :publicKey, :inbox, :outbox, :url)
         end
       end
 
@@ -43,11 +37,13 @@ RSpec.describe InstanceActorsController, type: :controller do
 
       context 'without authorized fetch mode' do
         let(:authorized_fetch_mode) { false }
+
         it_behaves_like 'shared behavior'
       end
 
       context 'with authorized fetch mode' do
         let(:authorized_fetch_mode) { true }
+
         it_behaves_like 'shared behavior'
       end
     end

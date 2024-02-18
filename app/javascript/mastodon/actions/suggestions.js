@@ -1,6 +1,7 @@
 import api from '../api';
-import { importFetchedAccounts } from './importer';
+
 import { fetchRelationships } from './accounts';
+import { importFetchedAccounts } from './importer';
 
 export const SUGGESTIONS_FETCH_REQUEST = 'SUGGESTIONS_FETCH_REQUEST';
 export const SUGGESTIONS_FETCH_SUCCESS = 'SUGGESTIONS_FETCH_SUCCESS';
@@ -53,12 +54,5 @@ export const dismissSuggestion = accountId => (dispatch, getState) => {
     id: accountId,
   });
 
-  api(getState).delete(`/api/v1/suggestions/${accountId}`).then(() => {
-    dispatch(fetchSuggestionsRequest());
-
-    api(getState).get('/api/v2/suggestions').then(response => {
-      dispatch(importFetchedAccounts(response.data.map(x => x.account)));
-      dispatch(fetchSuggestionsSuccess(response.data));
-    }).catch(error => dispatch(fetchSuggestionsFail(error)));
-  }).catch(() => {});
+  api(getState).delete(`/api/v1/suggestions/${accountId}`).catch(() => {});
 };

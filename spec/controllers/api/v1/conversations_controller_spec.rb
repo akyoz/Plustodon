@@ -1,6 +1,8 @@
+# frozen_string_literal: true
+
 require 'rails_helper'
 
-RSpec.describe Api::V1::ConversationsController, type: :controller do
+RSpec.describe Api::V1::ConversationsController do
   render_views
 
   let!(:user) { Fabricate(:user, account_attributes: { username: 'alice' }) }
@@ -11,7 +13,7 @@ RSpec.describe Api::V1::ConversationsController, type: :controller do
     allow(controller).to receive(:doorkeeper_token) { token }
   end
 
-  describe 'GET #index' do
+  describe 'GET #index', :sidekiq_inline do
     let(:scopes) { 'read:statuses' }
 
     before do
@@ -19,17 +21,14 @@ RSpec.describe Api::V1::ConversationsController, type: :controller do
       PostStatusService.new.call(user.account, text: 'Hey, nobody here', visibility: 'direct')
     end
 
-    it 'returns http success' do
-      get :index
-      expect(response).to have_http_status(200)
-    end
-
-    it 'returns pagination headers' do
+    it 'returns pagination headers', :aggregate_failures do
       get :index, params: { limit: 1 }
+
+      expect(response).to have_http_status(200)
       expect(response.headers['Link'].links.size).to eq(2)
     end
 
-    it 'returns conversations' do
+    it 'returns conversations', :aggregate_failures do
       get :index
       json = body_as_json
       expect(json.size).to eq 2

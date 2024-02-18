@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 Doorkeeper.configure do
   # Change the ORM that doorkeeper will use (needs plugins)
   orm :active_record
@@ -19,9 +21,14 @@ Doorkeeper.configure do
     user unless user&.otp_required_for_login?
   end
 
-  # If you want to restrict access to the web interface for adding oauth authorized applications, you need to declare the block below.
+  # Doorkeeper provides some administrative interfaces for managing OAuth
+  # Applications, allowing creation, edit, and deletion of applications from the
+  # server. At present, these administrative routes are not integrated into
+  # Mastodon, and as such, we've disabled them by always return a 403 forbidden
+  # response for them. This does not affect the ability for users to manage
+  # their own OAuth Applications.
   admin_authenticator do
-    current_user&.admin? || redirect_to(new_user_session_url)
+    head 403
   end
 
   # Authorization Code expiration time (default 10 minutes).
@@ -167,7 +174,7 @@ Doorkeeper.configure do
   # Under some circumstances you might want to have applications auto-approved,
   # so that the user skips the authorization step.
   # For example if dealing with a trusted application.
-  skip_authorization do |resource_owner, client|
+  skip_authorization do |_resource_owner, client|
     client.application.superapp?
   end
 
