@@ -9,35 +9,31 @@ class StatusesIndex < Chewy::Index
         type: 'sudachi_tokenizer',
         discard_punctuation: true,
         resources_path: '/etc/elasticsearch/sudachi',
-        settings_path: '/etc/elasticsearch/sudachi/sudachi.json',
-      },
+        settings_path: '/etc/elasticsearch/sudachi/sudachi.json'
+      }
     },
     filter: {
       english_stop: {
         type: 'stop',
-        stopwords: '_english_',
+        stopwords: '_english_'
       },
-
       english_stemmer: {
         type: 'stemmer',
-        language: 'english',
+        language: 'english'
       },
-
       english_possessive_stemmer: {
         type: 'stemmer',
-        language: 'possessive_english',
-      },
+        language: 'possessive_english'
+      }
     },
-
     analyzer: {
       verbatim: {
         tokenizer: 'uax_url_email',
-        filter: %w(lowercase),
+        filter: %w(lowercase)
       },
-
       content: {
-        'char_filter':['icu_normalizer'],
-        'tokenizer': 'sudachi_tokenizer',
+        char_filter: ['icu_normalizer'],
+        tokenizer: 'sudachi_tokenizer',
         type: 'custom',
         filter: %w(
           lowercase
@@ -50,9 +46,8 @@ class StatusesIndex < Chewy::Index
           sudachi_part_of_speech
           sudachi_ja_stop
           sudachi_baseform
-        ),
+        )
       },
-
       hashtag: {
         tokenizer: 'keyword',
         filter: %w(
@@ -60,21 +55,27 @@ class StatusesIndex < Chewy::Index
           lowercase
           asciifolding
           cjk_width
-        ),
-      },
-    },
+        )
+      }
+    }
   }
 
-  index_scope ::Status.unscoped.kept.without_reblogs.includes(:media_attachments, :local_mentioned, :local_favorited, :local_reblogged, :local_bookmarked, :tags, preview_cards_status: :preview_card, preloadable_poll: :local_voters), delete_if: ->(status) { status.searchable_by.empty? }
+  index_scope ::Status.unscoped.kept.without_reblogs.includes(
+    :media_attachments, :local_mentioned, :local_favorited, 
+    :local_reblogged, :local_bookmarked, :tags, preview_cards_status: :preview_card, 
+    preloadable_poll: :local_voters
+  ), delete_if: ->(status) { status.searchable_by.empty? }
 
   root date_detection: false do
-    field(:id, type: 'long')
-    field(:account_id, type: 'long')
-    field(:text, type: 'text', analyzer: 'verbatim', value: ->(status) { status.searchable_text }) { field(:stemmed, type: 'text', analyzer: 'content') }
-    field(:tags, type: 'text', analyzer: 'hashtag',  value: ->(status) { status.tags.map(&:display_name) })
-    field(:searchable_by, type: 'long', value: ->(status) { status.searchable_by })
-    field(:language, type: 'keyword')
-    field(:properties, type: 'keyword', value: ->(status) { status.searchable_properties })
-    field(:created_at, type: 'date', value: ->(status) { clamp_date(status.created_at) })
+    field :id, type: 'long'
+    field :account_id, type: 'long'
+    field :text, type: 'text', analyzer: 'verbatim', value: ->(status) { status.searchable_text } do
+      field :stemmed, type: 'text', analyzer: 'content'
+    end
+    field :tags, type: 'text', analyzer: 'hashtag',  value: ->(status) { status.tags.map(&:display_name) }
+    field :searchable_by, type: 'long', value: ->(status) { status.searchable_by }
+    field :language, type: 'keyword'
+    field :properties, type: 'keyword', value: ->(status) { status.searchable_properties }
+    field :created_at, type: 'date', value: ->(status) { clamp_date(status.created_at) }
   end
 end
