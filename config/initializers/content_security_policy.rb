@@ -94,6 +94,6 @@ Rails.application.reloader.to_prepare do
 
     LetterOpenerWeb::LettersController.after_action do
       request.content_security_policy_nonce_directives = %w(script-src)
-    end　
+    end
   end
 end
