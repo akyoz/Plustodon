@@ -36,9 +36,9 @@ class StatusesIndex < Chewy::Index
       },
 
       content: {
-        "char_filter":["icu_normalizer"],
-        "tokenizer": "sudachi_tokenizer",
-        type: "custom",
+        char_filter: ['icu_normalizer'],
+        tokenizer: 'sudachi_tokenizer',
+        type: 'custom',
         filter: %w(
           lowercase
           asciifolding
