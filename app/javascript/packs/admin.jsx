@@ -94,18 +94,6 @@ Rails.delegate(document, batchCheckboxClassName, 'change', () => {
   }
 });
 
-Rails.delegate(document, '.media-spoiler-show-button', 'click', () => {
-  [].forEach.call(document.querySelectorAll('button.media-spoiler'), (element) => {
-    element.click();
-  });
-});
-
-Rails.delegate(document, '.media-spoiler-hide-button', 'click', () => {
-  [].forEach.call(document.querySelectorAll('.spoiler-button.spoiler-button--visible button'), (element) => {
-    element.click();
-  });
-});
-
 Rails.delegate(document, '.filter-subset--with-select select', 'change', ({ target }) => {
   target.form.submit();
 });
@@ -144,6 +132,10 @@ Rails.delegate(document, '#form_admin_settings_enable_bootstrap_timeline_account
 
 const onChangeRegistrationMode = (target) => {
   const enabled = target.value === 'approved';
+
+  [].forEach.call(document.querySelectorAll('.form_admin_settings_registrations_mode .warning-hint'), (warning_hint) => {
+    warning_hint.style.display = target.value === 'open' ? 'inline' : 'none';
+  });
 
   [].forEach.call(document.querySelectorAll('#form_admin_settings_require_invite_text'), (input) => {
     input.disabled = !enabled;
