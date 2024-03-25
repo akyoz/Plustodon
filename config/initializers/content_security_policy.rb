@@ -35,8 +35,8 @@ Rails.application.config.content_security_policy do |p|
   p.default_src     :none
   p.frame_ancestors :none
   p.font_src        :self, assets_host
-  p.img_src         :self, :data, :blob, *media_hosts, 'https://34.si/402/'
-  p.style_src       :self, assets_host, 'https://34.si/402/'
+  p.img_src         :self, :data, :blob, *media_hosts, 'https://34.si/'
+  p.style_src       :self, assets_host, 'https://34.si/'
   p.media_src       :self, :data, *media_hosts
   p.frame_src       :self, :https
   p.manifest_src    :self, assets_host
@@ -74,7 +74,7 @@ Rails.application.config.content_security_policy_nonce_directives = %w(style-src
 Rails.application.reloader.to_prepare do
   PgHero::HomeController.content_security_policy do |p|
     p.script_src :self, :unsafe_inline, assets_host, 'https://static.cloudflareinsights.com/', 'https://stats.g.doubleclick.net/'
-    p.style_src  :self, :unsafe_inline, assets_host, 'https://34.si/402/'
+    p.style_src  :self, :unsafe_inline, assets_host, 'https://34.si/'
   end
 
   PgHero::HomeController.after_action do
@@ -88,7 +88,7 @@ Rails.application.reloader.to_prepare do
       p.frame_ancestors :self
       p.frame_src       :self
       p.script_src      :unsafe_inline, 'https://static.cloudflareinsights.com/', 'https://stats.g.doubleclick.net/'
-      p.style_src       :unsafe_inline, 'https://34.si/402/'
+      p.style_src       :unsafe_inline, 'https://34.si/'
       p.worker_src      :none
     end
 
