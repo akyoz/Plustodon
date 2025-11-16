@@ -3,11 +3,11 @@
 source 'https://rubygems.org'
 ruby '>= 3.0.0'
 
-gem 'puma', '~> 6.3'
+gem 'puma', '~> 6.4'
 gem 'rails', '~> 7.1.1'
 gem 'propshaft'
 gem 'thor', '~> 1.2'
-gem 'rack', '~> 2.2.7'
+gem 'rack', '~> 2.2.20'
 
 # For why irb is in the Gemfile, see: https://ruby.social/@st0012/111444685161478182
 gem 'irb', '~> 1.8'
@@ -31,7 +31,7 @@ gem 'browser'
 gem 'charlock_holmes', '~> 0.7.7'
 gem 'chewy', '~> 7.3'
 gem 'devise', '~> 4.9'
-gem 'devise-two-factor', '~> 4.1'
+gem 'devise-two-factor', '~> 6.0'
 
 group :pam_authentication, optional: true do
   gem 'devise_pam_authenticatable2', '~> 9.2'
@@ -40,7 +40,7 @@ end
 gem 'net-ldap', '~> 0.18'
 
 gem 'omniauth-cas', '~> 3.0.0.beta.1'
-gem 'omniauth-saml', '~> 2.0'
+gem 'omniauth-saml', '~> 2.1'
 gem 'omniauth_openid_connect', '~> 0.6.1'
 gem 'omniauth', '~> 2.0'
 gem 'omniauth-rails_csrf_protection', '~> 1.0'
@@ -64,7 +64,7 @@ gem 'inline_svg'
 gem 'kaminari', '~> 1.2'
 gem 'link_header', '~> 0.0'
 gem 'mime-types', '~> 3.5.0', require: 'mime/types/columnar'
-gem 'nokogiri', '~> 1.15'
+gem 'nokogiri', '~> 1.18'
 gem 'nsa'
 gem 'oj', '~> 3.14'
 gem 'ox', '~> 2.14'
