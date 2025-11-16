@@ -4,6 +4,14 @@ class StatusesIndex < Chewy::Index
   include DatetimeClampingConcern
 
   settings index: index_preset(refresh_interval: '30s', number_of_shards: 5), analysis: {
+    tokenizer: {
+      sudachi_tokenizer: {
+        type: 'sudachi_tokenizer',
+        discard_punctuation: true,
+        resources_path: '/etc/elasticsearch/sudachi',
+        settings_path: '/etc/elasticsearch/sudachi/sudachi.json',
+      },
+    },
     filter: {
       english_stop: {
         type: 'stop',
@@ -28,7 +36,9 @@ class StatusesIndex < Chewy::Index
       },
 
       content: {
-        tokenizer: 'standard',
+        char_filter: ['icu_normalizer'],
+        tokenizer: 'sudachi_tokenizer',
+        type: 'custom',
         filter: %w(
           lowercase
           asciifolding
@@ -37,6 +47,9 @@ class StatusesIndex < Chewy::Index
           english_possessive_stemmer
           english_stop
           english_stemmer
+          sudachi_part_of_speech
+          sudachi_ja_stop
+          sudachi_baseform
         ),
       },
 
